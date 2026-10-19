@@ -53,8 +53,6 @@ bool LlamaEngine::initModel(
     // Setup Model Parameters
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = nGpuLayers;
-    model_params.use_mmap = useMmap;
-    model_params.use_mlock = false; // Never lock in RAM on mobile
     model_params.check_tensors = false;
 
     // Load Model using modern llama.cpp API
@@ -83,7 +81,7 @@ bool LlamaEngine::initModel(
     ctx_params.n_batch = 512;
     ctx_params.n_threads = m_nThreads;
     ctx_params.n_threads_batch = m_nThreads;
-    ctx_params.flash_attn = true;
+    ctx_params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
 
     m_ctx = llama_init_from_model(m_model, ctx_params);
     if (!m_ctx) {
