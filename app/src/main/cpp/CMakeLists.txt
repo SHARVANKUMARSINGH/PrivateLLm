@@ -11,11 +11,8 @@ if(${ANDROID_ABI} STREQUAL "arm64-v8a")
     add_compile_options(
         -O3
         -march=armv8-a+simd
-        -ffast-math
-        -flto
-        -funroll-loops
+        -fno-finite-math-only
     )
-    add_link_options(-flto)
 endif()
 
 # Configuration flags for llama.cpp build
