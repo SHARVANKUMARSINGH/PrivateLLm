@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.sp
 import com.privtellm.hub.ModelItem
 import com.privtellm.nativebridge.GenerationChunk
 import com.privtellm.nativebridge.NativeLib
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -448,48 +447,53 @@ fun ChatPlaygroundScreen(
                                     messages.add(assistantMsg)
                                     isGenerating = true
 
+                                    val assistantIndex = messages.size - 1
+
                                     coroutineScope.launch {
                                         listState.animateScrollToItem(messages.size - 1)
-                                        var accumulated = ""
-                                        var lastTps = 0.0
-                                        var tokens = 0
+                                        val formattedPrompt = "<|im_start|>system\n$systemPrompt<|im_end|>\n<|im_start|>user\n${if (currentImage != null) "[Image Attached] " else ""}$userText<|im_end|>\n<|im_start|>assistant\n"
+                                        val stream = NativeLib.generateStream(formattedPrompt)
+                                        val fullResponse = java.lang.StringBuilder()
 
                                         try {
-                                            NativeLib.generateSafeFlow(
-                                                prompt = userText.ifEmpty { "Describe this image." },
-                                                maxTokens = 512,
-                                                temperature = temperature,
-                                                topP = topP
-                                            ).collect { chunk: GenerationChunk ->
-                                                accumulated += chunk.token
-                                                lastTps = chunk.tokensPerSecond
-                                                tokens = chunk.tokenCount
-
-                                                val index = messages.indexOfFirst { it.id == assistantMsg.id }
-                                                if (index != -1) {
-                                                    messages[index] = assistantMsg.copy(
-                                                        content = accumulated,
-                                                        isStreaming = !chunk.isFinished,
-                                                        tps = lastTps,
-                                                        tokenCount = tokens
-                                                    )
+                                            stream.collect { chunk: GenerationChunk ->
+                                                if (chunk.token.isNotEmpty()) {
+                                                    fullResponse.append(chunk.token)
+                                                    if (assistantIndex in messages.indices) {
+                                                        messages[assistantIndex] = messages[assistantIndex].copy(
+                                                            content = fullResponse.toString(),
+                                                            tokenCount = fullResponse.length / 4
+                                                        )
+                                                    }
                                                 }
-                                                listState.animateScrollToItem(messages.size - 1)
+
+                                                if (chunk.isFinished) {
+                                                    if (assistantIndex in messages.indices) {
+                                                        messages[assistantIndex] = messages[assistantIndex].copy(
+                                                            content = if (chunk.error != null)
+                                                                "⚠️ ${chunk.error}"
+                                                            else
+                                                                fullResponse.toString(),
+                                                            isStreaming = false,
+                                                            tps = chunk.tokensPerSecond,
+                                                            tokenCount = chunk.completionTokens
+                                                        )
+                                                    }
+                                                }
                                             }
                                         } catch (t: Throwable) {
-                                            val index = messages.indexOfFirst { it.id == assistantMsg.id }
-                                            if (index != -1) {
-                                                messages[index] = assistantMsg.copy(
+                                            if (assistantIndex in messages.indices) {
+                                                messages[assistantIndex] = messages[assistantIndex].copy(
                                                     content = "Generation error: ${t.localizedMessage ?: "Unknown error"}",
                                                     isStreaming = false
                                                 )
                                             }
                                         } finally {
                                             isGenerating = false
-                                            val index = messages.indexOfFirst { it.id == assistantMsg.id }
-                                            if (index != -1) {
-                                                messages[index] = messages[index].copy(isStreaming = false)
+                                            if (assistantIndex in messages.indices) {
+                                                messages[assistantIndex] = messages[assistantIndex].copy(isStreaming = false)
                                             }
+                                            listState.animateScrollToItem(messages.size - 1)
                                         }
                                     }
                                 }
