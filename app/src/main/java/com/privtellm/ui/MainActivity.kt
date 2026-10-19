@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import android.widget.Toast
+import com.privtellm.PrivteLLMApp
 import com.privtellm.core.profiler.DeviceProfiler
 import com.privtellm.core.profiler.MemorySnapshot
 import com.privtellm.hub.ModelCatalog
@@ -58,8 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        profiler = DeviceProfiler(this)
-        downloader = ModelDownloader(this)
+        profiler = (application as PrivteLLMApp).profiler
+        downloader = (application as PrivteLLMApp).downloader
 
         checkNotificationPermission()
 
@@ -97,6 +99,7 @@ fun MainAppScreen(
     onStopServer: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedTab by remember { mutableStateOf(MainTab.SERVER) }
     val memorySnapshot by profiler.monitorMemory(intervalMs = 1000)
         .collectAsState(initial = profiler.getMemorySnapshot())
@@ -246,6 +249,9 @@ fun MainAppScreen(
                                 NativeLib.releaseModel()
                                 loadedModel = null
                                 LocalAiServerService.setActiveModel(null)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Model unloaded from RAM", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     )
@@ -261,19 +267,53 @@ fun MainAppScreen(
                             coroutineScope.launch {
                                 val targetFile = downloader.getTargetFile(modelToLoad)
                                 if (targetFile.exists()) {
-                                    withContext(Dispatchers.IO) {
-                                        val success = NativeLib.initModel(
-                                            path = targetFile.absolutePath,
-                                            nThreads = 4,
-                                            nGpuLayers = 0,
-                                            mmap = true,
-                                            streamingExecution = true
-                                        )
+                                    downloader.setModelLoading(modelToLoad, true)
+                                    try {
+                                        val success = withContext(Dispatchers.IO) {
+                                            NativeLib.initModel(
+                                                path = targetFile.absolutePath,
+                                                nThreads = 4,
+                                                nGpuLayers = 0,
+                                                mmap = true,
+                                                streamingExecution = true
+                                            )
+                                        }
                                         if (success) {
                                             loadedModel = modelToLoad
                                             LocalAiServerService.setActiveModel(modelToLoad)
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Loaded ${modelToLoad.name} into RAM (Ready)",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        } else {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Failed to initialize model. Please ensure enough free RAM is available.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(
+                                                context,
+                                                "Error loading model: ${e.localizedMessage}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    } finally {
+                                        downloader.setModelLoading(modelToLoad, false)
                                     }
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Model file not downloaded yet. Please download it first.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         },
@@ -282,7 +322,13 @@ fun MainAppScreen(
                                 NativeLib.releaseModel()
                                 loadedModel = null
                                 LocalAiServerService.setActiveModel(null)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Model unloaded from RAM", Toast.LENGTH_SHORT).show()
+                                }
                             }
+                        },
+                        onNavigateToChat = {
+                            selectedTab = MainTab.CHAT
                         }
                     )
                 }

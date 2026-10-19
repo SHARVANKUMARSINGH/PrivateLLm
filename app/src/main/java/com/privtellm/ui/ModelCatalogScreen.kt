@@ -46,6 +46,7 @@ fun ModelCatalogScreen(
     loadedModelId: String?,
     onLoadModel: (ModelItem) -> Unit,
     onUnloadModel: () -> Unit,
+    onNavigateToChat: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -272,7 +273,8 @@ fun ModelCatalogScreen(
                 onPause = { downloader.pauseDownload(currentModel) },
                 onLoad = { onLoadModel(currentModel) },
                 onUnload = onUnloadModel,
-                onDelete = { downloader.deleteModel(currentModel) }
+                onDelete = { downloader.deleteModel(currentModel) },
+                onChatNow = onNavigateToChat
             )
         }
     }
@@ -290,6 +292,7 @@ fun ModelCardItem(
     onLoad: () -> Unit,
     onUnload: () -> Unit,
     onDelete: () -> Unit,
+    onChatNow: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -461,6 +464,38 @@ fun ModelCardItem(
                 }
             }
 
+            // Error Banner if download or loading failed
+            if (model.status == DownloadStatus.ERROR && model.lastError != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = StatusCriticalGlow,
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = Brush.horizontalGradient(listOf(StatusCritical, StatusCritical.copy(alpha = 0.5f)))
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = StatusCritical,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = model.lastError ?: "Download failed. Tap to retry.",
+                            color = colorScheme.onSurface,
+                            fontSize = 11.sp,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+
             // Download Progress Bar & Speed
             if (model.status == DownloadStatus.DOWNLOADING || model.status == DownloadStatus.PAUSED) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -469,10 +504,11 @@ fun ModelCardItem(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        val downloadedMb = String.format("%.1f MB", model.downloadedBytes / (1024.0 * 1024.0))
                         Text(
                             text = if (model.status == DownloadStatus.DOWNLOADING)
-                                "Downloading (${String.format("%.1f", model.downloadProgress * 100)}%)"
-                            else "Paused",
+                                "Downloading ${String.format("%.1f", model.downloadProgress * 100)}% ($downloadedMb / ${model.sizeFormatted})"
+                            else "Paused ($downloadedMb / ${model.sizeFormatted})",
                             color = AccentBlue,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
@@ -481,9 +517,10 @@ fun ModelCardItem(
                             text = if (model.downloadSpeedMb > 0)
                                 "${String.format("%.1f", model.downloadSpeedMb)} MB/s"
                             else "-- MB/s",
-                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+                            color = colorScheme.onSurface.copy(alpha = 0.7f),
                             fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
@@ -512,19 +549,19 @@ fun ModelCardItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons Row with #007ACC
+            // Action Buttons Row with Modern Material 3 Styling
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when (model.status) {
-                    DownloadStatus.NOT_DOWNLOADED, DownloadStatus.ERROR -> {
+                    DownloadStatus.NOT_DOWNLOADED -> {
                         Button(
                             onClick = onDownload,
                             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 7.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
@@ -537,29 +574,60 @@ fun ModelCardItem(
                         }
                     }
 
+                    DownloadStatus.ERROR -> {
+                        Button(
+                            onClick = onDownload,
+                            colors = ButtonDefaults.buttonColors(containerColor = StatusWarning),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Retry Download", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
                     DownloadStatus.DOWNLOADING -> {
                         OutlinedButton(
                             onClick = onPause,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pause", fontSize = 12.sp)
+                            Text("Pause", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
 
                     DownloadStatus.PAUSED -> {
-                        Button(
-                            onClick = onDownload,
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Resume", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = onDelete,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete Part",
+                                    tint = colorScheme.onSurface.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Button(
+                                onClick = onDownload,
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Resume", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
 
@@ -568,7 +636,7 @@ fun ModelCardItem(
                     DownloadStatus.DOWNLOADED, DownloadStatus.LOADED -> {
                         IconButton(
                             onClick = onDelete,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
@@ -581,32 +649,61 @@ fun ModelCardItem(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         if (isLoaded) {
-                            OutlinedButton(
-                                onClick = onUnload,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
-                                ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text("Unload Engine", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = onChatNow,
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Chat,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text("Chat Now", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                OutlinedButton(
+                                    onClick = onUnload,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
+                                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                                        brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                                ) {
+                                    Text("Unload", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         } else {
                             Button(
                                 onClick = onLoad,
+                                enabled = !model.isLoading,
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 7.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Bolt,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Load Engine", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                if (model.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(15.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Loading RAM...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Bolt,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Load Engine", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

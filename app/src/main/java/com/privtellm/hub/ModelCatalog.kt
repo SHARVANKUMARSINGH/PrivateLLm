@@ -29,7 +29,9 @@ data class ModelItem(
     val downloadSpeedMb: Double = 0.0,
     val localFilePath: String? = null,
     val isRecommended: Boolean = false,
-    val recommendationReason: String = ""
+    val recommendationReason: String = "",
+    val lastError: String? = null,
+    val isLoading: Boolean = false
 ) {
     val sizeFormatted: String
         get() {
@@ -59,9 +61,8 @@ object ModelCatalog {
             description = "Ultra-compact model tailored for resource-constrained edge devices with instant response time.",
             parametersBillion = 0.36f,
             quantization = "Q4_K_M",
-            sizeBytes = 240L * 1024 * 1024,
-            downloadUrl = "https://huggingface.co/HuggingFaceTB/SmolLM-360M-Instruct-GGUF/resolve/main/smollm-360m-instruct-q4_k_m.gguf",
-            sha256 = "c656910793b57c6670868f7634f19df1ecfa574dbd0b7e2bbd921e1a06950e3d",
+            sizeBytes = 270590400L,
+            downloadUrl = "https://huggingface.co/QuantFactory/SmolLM-360M-Instruct-GGUF/resolve/main/SmolLM-360M-Instruct.Q4_K_M.gguf",
             contextLength = 2048
         ),
         ModelItem(
@@ -127,13 +128,13 @@ object ModelCatalog {
             contextLength = 8192
         ),
         ModelItem(
-            id = "qwen2.5-14b-instruct-q4_0",
+            id = "qwen2.5-14b-instruct-q4_k_m",
             name = "Qwen 2.5 14B Instruct",
             description = "Heavyweight 14B quantized model for high-RAM mobile workstations and flagship flagships.",
             parametersBillion = 14.7f,
-            quantization = "Q4_0",
-            sizeBytes = 8990L * 1024 * 1024,
-            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct-GGUF/resolve/main/qwen2.5-14b-instruct-q4_0.gguf",
+            quantization = "Q4_K_M",
+            sizeBytes = 8988110976L,
+            downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf",
             contextLength = 8192
         ),
         ModelItem(

@@ -80,10 +80,17 @@ class LocalAiServerService : Service() {
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, LocalAiServerService::class.java).apply {
-                action = ACTION_STOP
+            try {
+                val intent = Intent(context, LocalAiServerService::class.java).apply {
+                    action = ACTION_STOP
+                }
+                context.startService(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "startService ACTION_STOP failed: ${e.message}, falling back to stopService", e)
+                try {
+                    context.stopService(Intent(context, LocalAiServerService::class.java))
+                } catch (_: Exception) {}
             }
-            context.startService(intent)
         }
 
         fun setActiveModel(model: ModelItem?) {
@@ -123,6 +130,7 @@ class LocalAiServerService : Service() {
 
     private fun startServer() {
         if (_serverState.value.status == ServerStatus.RUNNING) return
+        isStopping = false
 
         _serverState.value = _serverState.value.copy(
             status = ServerStatus.STARTING,
@@ -396,26 +404,59 @@ class LocalAiServerService : Service() {
         return sb.toString()
     }
 
+    @Volatile
+    private var isStopping = false
+
     private fun stopServer() {
-        serviceScope.launch {
+        if (isStopping) return
+        isStopping = true
+
+        _serverState.value = _serverState.value.copy(
+            status = ServerStatus.STOPPED,
+            isInferring = false
+        )
+
+        // Stop active native generation safely
+        try {
+            NativeLib.stopGeneration()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping native generation: ${e.message}")
+        }
+
+        // Release wake lock safely
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing wake lock: ${e.message}")
+        }
+
+        // Remove foreground notification safely
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
             try {
-                NativeLib.stopGeneration()
-                serverEngine?.stop(1000, 2000)
-                serverEngine = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error stopping server engine: ${e.message}")
-            } finally {
-                _serverState.value = _serverState.value.copy(
-                    status = ServerStatus.STOPPED,
-                    isInferring = false
-                )
-                if (wakeLock?.isHeld == true) {
-                    wakeLock?.release()
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            } catch (_: Exception) {}
+        }
+
+        // Stop Ktor server engine on an independent background IO scope
+        val engineToStop = serverEngine
+        serverEngine = null
+        if (engineToStop != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    engineToStop.stop(500, 1000)
+                    Log.i(TAG, "Ktor server engine stopped successfully.")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error shutting down Ktor engine: ${e.message}")
                 }
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
             }
         }
+
+        stopSelf()
     }
 
     private fun createNotification(statusText: String): Notification {
@@ -443,9 +484,19 @@ class LocalAiServerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        memoryWatcher.stop()
-        stopServer()
-        serviceScope.cancel()
+        try {
+            memoryWatcher.stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping memory watcher: ${e.message}")
+        }
+        if (!isStopping) {
+            stopServer()
+        }
+        try {
+            serviceScope.cancel()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cancelling serviceScope: ${e.message}")
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

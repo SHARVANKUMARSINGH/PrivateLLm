@@ -21,6 +21,13 @@ MemoryManager::~MemoryManager() {
 
 MemoryStats MemoryManager::queryMemoryStats() {
     MemoryStats stats;
+    stats.totalRamMb = 4096;
+    stats.availableRamMb = 2048;
+
+    uint64_t memFreeKb = 0;
+    uint64_t buffersKb = 0;
+    uint64_t cachedKb = 0;
+    bool foundMemAvailable = false;
 
     // 1. Read system memory from /proc/meminfo
     std::ifstream meminfo("/proc/meminfo");
@@ -30,24 +37,36 @@ MemoryStats MemoryManager::queryMemoryStats() {
             if (line.rfind("MemTotal:", 0) == 0) {
                 uint64_t kb = 0;
                 std::sscanf(line.c_str(), "MemTotal: %llu kB", &kb);
-                stats.totalRamMb = kb / 1024;
+                if (kb > 0) stats.totalRamMb = kb / 1024;
             } else if (line.rfind("MemAvailable:", 0) == 0) {
                 uint64_t kb = 0;
                 std::sscanf(line.c_str(), "MemAvailable: %llu kB", &kb);
-                stats.availableRamMb = kb / 1024;
+                if (kb > 0) {
+                    stats.availableRamMb = kb / 1024;
+                    foundMemAvailable = true;
+                }
+            } else if (line.rfind("MemFree:", 0) == 0) {
+                std::sscanf(line.c_str(), "MemFree: %llu kB", &memFreeKb);
+            } else if (line.rfind("Buffers:", 0) == 0) {
+                std::sscanf(line.c_str(), "Buffers: %llu kB", &buffersKb);
+            } else if (line.rfind("Cached:", 0) == 0) {
+                std::sscanf(line.c_str(), "Cached: %llu kB", &cachedKb);
             }
+        }
+        if (!foundMemAvailable && (memFreeKb + buffersKb + cachedKb) > 0) {
+            stats.availableRamMb = (memFreeKb + buffersKb + cachedKb) / 1024;
         }
     } else {
         // Fallback to sysinfo syscall
         struct sysinfo si;
         if (sysinfo(&si) == 0) {
-            stats.totalRamMb = (si.totalram * si.mem_unit) / (1024 * 1024);
-            stats.availableRamMb = (si.freeram * si.mem_unit) / (1024 * 1024);
+            if (si.totalram > 0) stats.totalRamMb = (si.totalram * si.mem_unit) / (1024 * 1024);
+            uint64_t freeMb = ((si.freeram + si.bufferram) * si.mem_unit) / (1024 * 1024);
+            if (freeMb > 0) stats.availableRamMb = freeMb;
         }
     }
 
     // 2. Read process memory from /proc/self/statm
-    // Fields: size, resident, shared, text, lib, data, dt
     std::ifstream statm("/proc/self/statm");
     if (statm.is_open()) {
         uint64_t vmPages = 0;
@@ -99,7 +118,7 @@ void MemoryManager::unregisterMmapRegion() {
 }
 
 void MemoryManager::adviseLayerActive(int layerIndex) {
-    if (!m_streamingEnabled.load() || !m_mmapBaseAddress || layerIndex < 0 || layerIndex >= m_numLayers) {
+    if (!m_streamingEnabled.load() || !m_mmapBaseAddress || m_mmapBaseAddress == reinterpret_cast<void*>(0xDEADBEEF) || layerIndex < 0 || layerIndex >= m_numLayers) {
         return;
     }
 
@@ -115,7 +134,7 @@ void MemoryManager::adviseLayerActive(int layerIndex) {
 }
 
 void MemoryManager::adviseLayerDone(int layerIndex) {
-    if (!m_streamingEnabled.load() || !m_mmapBaseAddress || layerIndex < 0 || layerIndex >= m_numLayers) {
+    if (!m_streamingEnabled.load() || !m_mmapBaseAddress || m_mmapBaseAddress == reinterpret_cast<void*>(0xDEADBEEF) || layerIndex < 0 || layerIndex >= m_numLayers) {
         return;
     }
 

@@ -14,6 +14,9 @@ class PrivteLLMApp : Application() {
             private set
     }
 
+    val downloader: com.privtellm.hub.ModelDownloader by lazy { com.privtellm.hub.ModelDownloader(this) }
+    val profiler: com.privtellm.core.profiler.DeviceProfiler by lazy { com.privtellm.core.profiler.DeviceProfiler(this) }
+
     override fun onCreate() {
         super.onCreate()
         instance = this

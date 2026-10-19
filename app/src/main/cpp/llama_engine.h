@@ -47,7 +47,7 @@ private:
     LlamaEngine();
     ~LlamaEngine();
 
-    mutable std::mutex m_engineMutex;
+    mutable std::recursive_mutex m_engineMutex;
     std::atomic<bool> m_isLoaded{false};
     std::atomic<bool> m_isGenerating{false};
     std::atomic<bool> m_stopRequested{false};

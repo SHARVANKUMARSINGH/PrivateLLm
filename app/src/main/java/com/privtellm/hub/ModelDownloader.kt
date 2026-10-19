@@ -38,19 +38,31 @@ class ModelDownloader(private val context: Context) {
     fun getStateFlow(model: ModelItem): StateFlow<ModelItem> {
         return _downloadStates.getOrPut(model.id) {
             val file = getTargetFile(model)
-            val initialStatus = if (file.exists() && file.length() >= model.sizeBytes * 0.95) {
+            val partFile = File(file.parentFile, "${file.name}.part")
+            val isComplete = file.exists() && file.length() > 50L * 1024 * 1024 && !partFile.exists()
+            val initialStatus = if (isComplete) {
                 DownloadStatus.DOWNLOADED
+            } else if (partFile.exists() && partFile.length() > 0) {
+                DownloadStatus.PAUSED
             } else {
                 DownloadStatus.NOT_DOWNLOADED
             }
+            val progress = if (isComplete) 1.0f else if (partFile.exists() && model.sizeBytes > 0) (partFile.length().toFloat() / model.sizeBytes).coerceIn(0f, 0.99f) else 0f
             MutableStateFlow(
                 model.copy(
                     status = initialStatus,
-                    localFilePath = if (initialStatus == DownloadStatus.DOWNLOADED) file.absolutePath else null,
-                    downloadProgress = if (initialStatus == DownloadStatus.DOWNLOADED) 1.0f else 0.0f
+                    localFilePath = if (isComplete) file.absolutePath else null,
+                    downloadProgress = progress,
+                    downloadedBytes = if (isComplete) file.length() else if (partFile.exists()) partFile.length() else 0L
                 )
             )
         }.asStateFlow()
+    }
+
+    fun setModelLoading(model: ModelItem, loading: Boolean) {
+        _downloadStates[model.id]?.let {
+            it.value = it.value.copy(isLoading = loading)
+        }
     }
 
     fun startDownload(model: ModelItem, onComplete: ((File) -> Unit)? = null) {
@@ -64,6 +76,7 @@ class ModelDownloader(private val context: Context) {
         }
 
         val targetFile = getTargetFile(model)
+        targetFile.parentFile?.mkdirs()
         val partFile = File(targetFile.parentFile, "${targetFile.name}.part")
 
         val job = scope.launch {
@@ -72,7 +85,8 @@ class ModelDownloader(private val context: Context) {
 
                 stateFlow.value = stateFlow.value.copy(
                     status = DownloadStatus.DOWNLOADING,
-                    downloadedBytes = existingBytes
+                    downloadedBytes = existingBytes,
+                    lastError = null
                 )
 
                 val requestBuilder = Request.Builder()
@@ -89,11 +103,11 @@ class ModelDownloader(private val context: Context) {
                     throw IllegalStateException("Server returned HTTP ${response.code}: ${response.message}")
                 }
 
-                val body = response.body ?: throw IllegalStateException("Empty response body")
+                val body = response.body ?: throw IllegalStateException("Empty response body from server")
                 val totalBytes = if (response.code == 206) {
                     existingBytes + body.contentLength()
                 } else {
-                    existingBytes = 0L // Server ignored range header
+                    existingBytes = 0L // Server did not accept Range header, starting from scratch
                     body.contentLength()
                 }
 
@@ -126,7 +140,7 @@ class ModelDownloader(private val context: Context) {
 
                             val now = System.currentTimeMillis()
                             val timeDelta = now - lastSpeedCalcTime
-                            if (timeDelta >= 800) {
+                            if (timeDelta >= 600) {
                                 currentSpeedMb = (bytesSinceLastCalc.toDouble() / (1024.0 * 1024.0)) / (timeDelta.toDouble() / 1000.0)
                                 lastSpeedCalcTime = now
                                 bytesSinceLastCalc = 0L
@@ -136,7 +150,8 @@ class ModelDownloader(private val context: Context) {
                                     status = DownloadStatus.DOWNLOADING,
                                     downloadProgress = progress,
                                     downloadedBytes = totalRead,
-                                    downloadSpeedMb = currentSpeedMb
+                                    downloadSpeedMb = currentSpeedMb,
+                                    lastError = null
                                 )
                             }
                         }
@@ -150,7 +165,7 @@ class ModelDownloader(private val context: Context) {
                     downloadSpeedMb = 0.0
                 )
 
-                // Verify file integrity
+                // Verify file integrity if hash provided
                 if (model.sha256 != null && !verifySha256(partFile, model.sha256)) {
                     Log.w(TAG, "SHA256 mismatch for ${model.name}, but continuing with downloaded weights.")
                 }
@@ -169,7 +184,10 @@ class ModelDownloader(private val context: Context) {
                 stateFlow.value = stateFlow.value.copy(
                     status = DownloadStatus.DOWNLOADED,
                     downloadProgress = 1.0f,
-                    localFilePath = targetFile.absolutePath
+                    downloadedBytes = targetFile.length(),
+                    downloadSpeedMb = 0.0,
+                    localFilePath = targetFile.absolutePath,
+                    lastError = null
                 )
 
                 onComplete?.invoke(targetFile)
@@ -178,8 +196,13 @@ class ModelDownloader(private val context: Context) {
                 if (e is CancellationException) {
                     stateFlow.value = stateFlow.value.copy(status = DownloadStatus.PAUSED)
                 } else {
-                    Log.e(TAG, "Download error for ${model.name}: ${e.message}", e)
-                    stateFlow.value = stateFlow.value.copy(status = DownloadStatus.ERROR)
+                    val errMsg = e.message ?: "Connection error. Tap to retry."
+                    Log.e(TAG, "Download error for ${model.name}: $errMsg", e)
+                    stateFlow.value = stateFlow.value.copy(
+                        status = DownloadStatus.ERROR,
+                        lastError = errMsg,
+                        downloadSpeedMb = 0.0
+                    )
                 }
             } finally {
                 downloadJobs.remove(model.id)

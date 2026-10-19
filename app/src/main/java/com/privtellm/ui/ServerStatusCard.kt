@@ -38,7 +38,10 @@ fun ServerStatusCard(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val isRunning = serverState.status == ServerStatus.RUNNING
+    val isStarting = serverState.status == ServerStatus.STARTING
+    var showCopied by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Pulse animation for active server & inference indicator
     val infiniteTransition = rememberInfiniteTransition(label = "ServerRadar")
@@ -60,6 +63,8 @@ fun ServerStatusCard(
             brush = Brush.horizontalGradient(
                 if (isRunning)
                     listOf(AccentBlue.copy(alpha = 0.8f), colorScheme.outline.copy(alpha = 0.5f))
+                else if (isStarting)
+                    listOf(AccentCyan.copy(alpha = 0.8f), colorScheme.outline.copy(alpha = 0.5f))
                 else
                     listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f))
             )
@@ -114,24 +119,78 @@ fun ServerStatusCard(
                             }
                         }
                         Text(
-                            text = if (isRunning) "Listening on http://0.0.0.0:${serverState.port}" else "Service Offline",
-                            color = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
+                            text = when {
+                                isStarting -> "Initializing HTTP Engine..."
+                                isRunning -> "Listening on http://0.0.0.0:${serverState.port}"
+                                serverState.status == ServerStatus.ERROR -> "Server Error"
+                                else -> "Service Offline"
+                            },
+                            color = when {
+                                isStarting -> AccentCyan
+                                isRunning -> AccentBlue
+                                serverState.status == ServerStatus.ERROR -> StatusCritical
+                                else -> colorScheme.onSurface.copy(alpha = 0.5f)
+                            },
                             fontSize = 11.sp
                         )
                     }
                 }
 
-                // Switch styled with #007ACC
-                Switch(
-                    checked = isRunning,
-                    onCheckedChange = { onToggleServer(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = AccentBlue,
-                        uncheckedThumbColor = colorScheme.onSurface.copy(alpha = 0.4f),
-                        uncheckedTrackColor = colorScheme.surfaceVariant
+                // Switch with loading state
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isStarting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = AccentCyan,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    Switch(
+                        checked = isRunning || isStarting,
+                        onCheckedChange = { if (!isStarting) onToggleServer(it) },
+                        enabled = !isStarting,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = AccentBlue,
+                            uncheckedThumbColor = colorScheme.onSurface.copy(alpha = 0.4f),
+                            uncheckedTrackColor = colorScheme.surfaceVariant
+                        )
                     )
-                )
+                }
+            }
+
+            // Error Alert Banner
+            if (serverState.lastError != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = StatusCriticalGlow,
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = Brush.horizontalGradient(listOf(StatusCritical, StatusCritical.copy(alpha = 0.4f)))
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WarningAmber,
+                            contentDescription = "Error",
+                            tint = StatusCritical,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = serverState.lastError ?: "",
+                            color = StatusCritical,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -143,6 +202,11 @@ fun ServerStatusCard(
                     .clickable {
                         val endpoint = "http://${serverState.localIp}:${serverState.port}"
                         copyToClipboard(context, "API Endpoint", endpoint)
+                        showCopied = true
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(2000)
+                            showCopied = false
+                        }
                     },
                 shape = RoundedCornerShape(10.dp),
                 color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
@@ -177,27 +241,74 @@ fun ServerStatusCard(
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = colorScheme.surface
+                        color = if (showCopied) StatusSuccessGlow else colorScheme.surface
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ContentCopy,
+                                imageVector = if (showCopied) Icons.Default.Check else Icons.Default.ContentCopy,
                                 contentDescription = "Copy",
-                                tint = colorScheme.onSurface.copy(alpha = 0.65f),
+                                tint = if (showCopied) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "COPY",
-                                color = colorScheme.onSurface.copy(alpha = 0.65f),
+                                text = if (showCopied) "COPIED" else "COPY",
+                                color = if (showCopied) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
+                    }
+                }
+            }
+
+            // Served Model Status Bar
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = if (serverState.activeModel != null) AccentBlueGlow.copy(alpha = 0.6f) else colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = "Active Model",
+                            tint = if (serverState.activeModel != null) AccentCyan else colorScheme.onSurface.copy(alpha = 0.4f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "SERVED MODEL: ",
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = serverState.activeModel?.name ?: "None Loaded (Chat returns 503)",
+                            color = if (serverState.activeModel != null) AccentCyan else StatusWarning,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (serverState.activeModel != null) {
+                        Text(
+                            text = serverState.activeModel?.quantization ?: "",
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
             }

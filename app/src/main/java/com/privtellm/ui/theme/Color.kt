@@ -2,11 +2,15 @@ package com.privtellm.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Accent Color requested: #007ACC (Professional Developer Blue)
+// Primary Accent Color: #007ACC with modern Cyan glow
 val AccentBlue = Color(0xFF007ACC)
 val AccentBlueDark = Color(0xFF005A9E)
 val AccentBlueLight = Color(0xFF1F8AD2)
 val AccentBlueGlow = Color(0x33007ACC)
+val AccentCyan = Color(0xFF00D2FF)
+val AccentCyanGlow = Color(0x2600D2FF)
+val StatusSuccess = Color(0xFF10B981)
+val StatusSuccessGlow = Color(0x3310B981)
 
 // System Dark Palette (Pure Black #000000 / True OLED Dark)
 val PureBlack = Color(0xFF000000)

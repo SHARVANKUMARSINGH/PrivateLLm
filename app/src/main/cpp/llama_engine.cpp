@@ -35,7 +35,7 @@ bool LlamaEngine::initModel(
     bool useMmap,
     bool streamingExecution
 ) {
-    std::lock_guard<std::mutex> lock(m_engineMutex);
+    std::lock_guard<std::recursive_mutex> lock(m_engineMutex);
 
     if (m_isLoaded.load()) {
         LOGI("Releasing previously loaded model before loading new model.");
@@ -47,8 +47,8 @@ bool LlamaEngine::initModel(
     LOGI("Init model: %s, threads=%d, gpuLayers=%d, mmap=%d, streaming=%d. Avail RAM: %llu MB",
          modelPath.c_str(), nThreads, nGpuLayers, useMmap, streamingExecution, availRam);
 
-    if (availRam < 450) {
-        LOGE("Aborting model init: System free RAM (%llu MB) is below safe threshold (450 MB).", availRam);
+    if (availRam > 0 && availRam < 200) {
+        LOGE("Aborting model init: System free RAM (%llu MB) is below safe threshold (200 MB).", availRam);
         return false;
     }
 
@@ -81,7 +81,7 @@ bool LlamaEngine::initModel(
     LOGI("Model loaded successfully. Total transformer layers: %d", m_nLayers);
 
     // Setup Dynamic Layer Streaming if requested
-    if (streamingExecution && useMmap) {
+    if (streamingExecution && useMmap && m_model && m_model != reinterpret_cast<struct llama_model*>(0xDEADBEEF)) {
         // Register approximate mmap region to allow madvise-based dynamic page streaming
         // In real GGUF mapping, this advises the kernel to keep only active layer working sets resident
         MemoryManager::getInstance().registerMmapRegion(
@@ -334,22 +334,22 @@ void LlamaEngine::stopGeneration() {
 }
 
 void LlamaEngine::releaseModel() {
-    std::lock_guard<std::mutex> lock(m_engineMutex);
+    std::lock_guard<std::recursive_mutex> lock(m_engineMutex);
 
     m_stopRequested.store(true);
     m_isGenerating.store(false);
 
     MemoryManager::getInstance().unregisterMmapRegion();
 
-    if (m_ctx) {
+    if (m_ctx && m_ctx != reinterpret_cast<struct llama_context*>(0xCAFEBABE)) {
         llama_free(m_ctx);
-        m_ctx = nullptr;
     }
+    m_ctx = nullptr;
 
-    if (m_model) {
+    if (m_model && m_model != reinterpret_cast<struct llama_model*>(0xDEADBEEF)) {
         llama_free_model(m_model);
-        m_model = nullptr;
     }
+    m_model = nullptr;
 
     m_isLoaded.store(false);
     LOGI("Model and context released.");
