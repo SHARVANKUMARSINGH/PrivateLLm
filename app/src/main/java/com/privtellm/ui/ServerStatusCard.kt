@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import com.privtellm.server.ServerState
 import com.privtellm.server.ServerStatus
 import com.privtellm.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServerStatusCard(
