@@ -27,12 +27,18 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privtellm.hub.DownloadStatus
+import com.privtellm.hub.ModelCatalog
+import com.privtellm.hub.ModelItem
+import com.privtellm.nativebridge.NativeLib
 import com.privtellm.server.LocalAiServerService
 import com.privtellm.server.ServerState
 import com.privtellm.server.ServerStatus
 import com.privtellm.ui.theme.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 @Composable
@@ -713,10 +719,15 @@ fun ServerStatusCard(
                     Text("Got It", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
+            containerColor = colorScheme.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
     // Model Selection Modal Dialog
     if (showModelSelectDialog) {
         val modelDir = ModelCatalog.getInternalModelDir(context)
-        val installedFiles = remember {
+        val installedFiles: List<java.io.File> = remember {
             modelDir.listFiles { _, name -> name.endsWith(".gguf", ignoreCase = true) }?.toList() ?: emptyList()
         }
 
@@ -769,7 +780,7 @@ fun ServerStatusCard(
                                                 nThreads = 4,
                                                 nGpuLayers = 0,
                                                 mmap = true,
-                                                streaming = true
+                                                streamingExecution = true
                                             )
                                             if (ok) {
                                                 val matching = ModelCatalog.CURATED_MODELS.find { it.id == file.nameWithoutExtension }
@@ -798,11 +809,9 @@ fun ServerStatusCard(
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else colorScheme.surfaceVariant,
-                                border = CardDefaults.outlinedCardBorder().copy(
-                                    brush = Brush.horizontalGradient(
-                                        if (isSelected) listOf(AccentCyan, AccentCyan)
-                                        else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
-                                    )
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) AccentCyan else colorScheme.outline.copy(alpha = 0.4f)
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {

@@ -95,13 +95,7 @@ fun StudioScreen() {
             TabRow(
                 selectedTabIndex = selectedStudioTab.ordinal,
                 containerColor = colorScheme.surface,
-                contentColor = AccentBlue,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedStudioTab.ordinal]),
-                        color = AccentBlue
-                    )
-                }
+                contentColor = AccentBlue
             ) {
                 Tab(
                     selected = selectedStudioTab == StudioTab.TTS,
@@ -451,7 +445,7 @@ private fun createArtisticCanvas(width: Int, height: Int, prompt: String, style:
     // Render cyber artistic elements
     val ringPaint = Paint().apply {
         color = android.graphics.Color.argb(140, 0, 210, 255)
-        style = Paint.Style.STROKE
+        this.style = Paint.Style.STROKE
         strokeWidth = 3f
         isAntiAlias = true
     }
