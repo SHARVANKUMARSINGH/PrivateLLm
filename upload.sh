@@ -138,7 +138,7 @@ if [ -z "$(git config user.name)" ]; then
     git config user.email "${GITHUB_USER}@users.noreply.github.com"
 fi
 
-git branch -M main
+git checkout -B main 2>/dev/null || git branch -M main 2>/dev/null || true
 
 # Add all files
 git add .
