@@ -384,7 +384,7 @@ class LocalAiServerService : Service() {
                 nThreads = 4,
                 nGpuLayers = 0,
                 mmap = true,
-                streaming = true
+                streamingExecution = true
             )
             if (initSuccess) {
                 val matchingCurated = ModelCatalog.CURATED_MODELS.find { it.id == modelId }
