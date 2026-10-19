@@ -91,7 +91,7 @@ class LocalAiServerService : Service() {
         }
     }
 
-    private var serverEngine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
+    private var serverEngine: ApplicationEngine? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var memoryWatcher: MemoryWatcher
