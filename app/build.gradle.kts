@@ -37,7 +37,7 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
                     "-DANDROID_PLATFORM=android-26",
-                    "-DGGML_VULKAN=ON"
+                    "-DGGML_VULKAN=OFF"
                 )
             }
         }
