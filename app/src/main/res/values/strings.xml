@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">PrivteLLM</string>
+    <string name="server_running_title">PrivteLLM Local AI Server Active</string>
+    <string name="server_running_desc">Listening on http://0.0.0.0:8080</string>
+    <string name="channel_name">AI Server Service</string>
+    <string name="channel_desc">Notifications for background inference and local server</string>
+</resources>

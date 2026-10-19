@@ -1,0 +1,167 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+      release_title:
+        description: 'Release Title'
+        required: false
+        default: 'PrivteLLM v1.0.0 - Production On-Device LLM & Local OpenAI Server'
+      publish_release:
+        description: 'Publish APK to GitHub Releases'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and CMake
+        run: |
+          echo "Installing Android NDK 26.1.10909125 and CMake 3.22.1..."
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1"
+
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build Debug & Release APKs
+        run: ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: Package & Prepare Release Artifacts
+        run: |
+          mkdir -p release_artifacts
+          
+          # Find and copy generated APKs
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk release_artifacts/PrivteLLM-v1.0.0-release.apk
+          fi
+          
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release_artifacts/PrivteLLM-v1.0.0-debug.apk
+          fi
+          
+          # Generate SHA-256 Checksums
+          cd release_artifacts
+          sha256sum *.apk > checksums.txt
+          cat checksums.txt
+          cd ..
+
+      - name: Upload APKs as Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: privtellm-apks
+          path: release_artifacts/*
+          retention-days: 14
+
+      - name: Determine Release Tag & Title
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+            TITLE="${{ github.event.inputs.release_title }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            TITLE="PrivteLLM ${TAG} - Production On-Device LLM & Local OpenAI Server"
+          else
+            TAG="v1.0.0"
+            TITLE="PrivteLLM v1.0.0 - Production On-Device LLM & Local OpenAI Server"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Publish Release with APK to GitHub Releases Page
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.title }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release_artifacts/*.apk
+            release_artifacts/checksums.txt
+          body: |
+            ## 🚀 PrivteLLM: Production-Ready Local Quantized LLM Runtime & OpenAI API Server for Android
+
+            PrivteLLM runs quantized Large Language Models (0.36B to 20B) directly on Android devices with zero cloud dependencies, exposes a high-performance **OpenAI-compatible local API server** (`http://0.0.0.0:8080`), and features dynamic memory adaptation.
+
+            ---
+
+            ### 📱 Included APKs
+            - **`PrivteLLM-v1.0.0-release.apk`**: Optimized production release build signed with universal installation certificate.
+            - **`PrivteLLM-v1.0.0-debug.apk`**: Debug build with native JNI logs and diagnostic tracing enabled.
+            - **`checksums.txt`**: SHA-256 integrity verification hashes.
+
+            ---
+
+            ### ⚡ Key Features
+            - **Native Inference Engine (C++20 & NDK)**:
+              - Target ABI: `arm64-v8a` with ARM64 NEON SIMD vectorization and OpenMP multi-core scheduling.
+              - Mobile GPU acceleration via Vulkan backend (`GGML_USE_VULKAN`).
+              - **Memory-Conscious Layer Streaming (`mmap = true`)**: Dynamically cycles transformer block pages using `madvise(MADV_WILLNEED / MADV_DONTNEED)`, running 3B–7B models without keeping all weight pages resident in physical RAM.
+              - **Dynamic KV-Cache Pruning**: Automatically prunes distant context tokens during memory pressure to prevent OOM.
+            - **Hardware Profiler (`DeviceProfiler.kt`)**:
+              - Real-time `ActivityManager.MemoryInfo` & `/proc/meminfo` reading.
+              - Dynamic hardware tiers (<4GB, 4-6GB, 8-12GB, ≥16GB RAM) recommending optimal models from 0.5B to 20B.
+            - **Embedded OpenAI API Server (Ktor CIO Engine)**:
+              - Foreground service running on `http://0.0.0.0:8080`.
+              - `GET /v1/models` (Installed & active models list).
+              - `POST /v1/chat/completions` supporting standard JSON and Server-Sent Events (`stream: true`) SSE streaming.
+              - Cross-Origin Resource Sharing (CORS) enabled for LAN devices, laptops, and web clients.
+            - **Safety Guardrails (`MemoryWatcher.kt`)**:
+              - Continuous 400ms memory watcher intercepting requests if free RAM drops below **450 MB**, cleanly terminating inference before Android Low Memory Killer (LMK) kills the app.
+            - **Jetpack Compose UI**:
+              - Hardware RAM Meter with 450 MB safety threshold line.
+              - Built-in Model Hub with dynamic `★ [RECOMMENDED FOR YOUR DEVICE]` badges.
+              - Resumable background downloader with OkHttp Range streaming and SHA-256 verification.
+              - Interactive Chat Playground with real-time Tokens Per Second (TPS) speedometer.
+
+            ---
+
+            ### 💻 Quick LAN API Test
+            ```bash
+            # Stream chat completions from any computer on your Wi-Fi:
+            curl -N -X POST http://<PHONE_IP>:8080/v1/chat/completions \
+              -H "Content-Type: application/json" \
+              -d '{
+                "model": "smollm-360m-instruct-q4_k_m",
+                "messages": [{"role": "user", "content": "Explain ARM NEON vectorization in 2 sentences."}],
+                "stream": true
+              }'
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

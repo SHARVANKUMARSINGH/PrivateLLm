@@ -1,0 +1,48 @@
+# Built application files
+*.apk
+*.aar
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+build/
+app/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Proguard fold
+proguard/
+
+# C/C++ native build artifacts
+.cxx/
+.externalNativeBuild/
+
+# Android Studio / IntelliJ IDEA
+*.iml
+.idea/
+.idea/libraries
+.idea/caches
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf
+
+# Download temporary parts
+*.part
+*.gguf
+
+# OS files
+.DS_Store
+Thumbs.db
