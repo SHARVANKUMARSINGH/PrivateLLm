@@ -29,7 +29,6 @@ android {
             cmake {
                 cppFlags += listOf(
                     "-std=c++20",
-                    "-fopenmp",
                     "-O3",
                     "-fexceptions",
                     "-frtti",
@@ -38,7 +37,6 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
                     "-DANDROID_PLATFORM=android-26",
-                    "-DGGML_OPENMP=ON",
                     "-DGGML_VULKAN=ON"
                 )
             }
