@@ -42,14 +42,11 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK and CMake
+      - name: Setup Android NDK & Accept Licenses
         run: |
-          echo "Installing Android NDK 26.1.10909125 and CMake 3.22.1..."
-          yes | sdkmanager --licenses || true
-          sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1"
+          echo "Setting up Android SDK, NDK, and CMake..."
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1" "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
 
       - name: Grant Execute Permission to gradlew
         run: chmod +x gradlew
