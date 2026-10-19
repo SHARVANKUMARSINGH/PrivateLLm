@@ -4,34 +4,37 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.privtellm.core.profiler.DeviceProfiler
 import com.privtellm.core.profiler.MemorySnapshot
-import com.privtellm.core.profiler.MemoryTier
-import com.privtellm.hub.DownloadStatus
 import com.privtellm.hub.ModelCatalog
 import com.privtellm.hub.ModelDownloader
 import com.privtellm.hub.ModelItem
 import com.privtellm.nativebridge.NativeLib
 import com.privtellm.server.LocalAiServerService
-import com.privtellm.server.ServerStatus
+import com.privtellm.server.ServerState
 import com.privtellm.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,9 +53,7 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Notification permission handled
-    }
+    ) { _: Boolean -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +97,7 @@ fun MainAppScreen(
     onStopServer: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(MainTab.SERVER) }
-    val memorySnapshot by profiler.monitorMemory(intervalMs = 1200)
+    val memorySnapshot by profiler.monitorMemory(intervalMs = 1000)
         .collectAsState(initial = profiler.getMemorySnapshot())
 
     val serverState by LocalAiServerService.serverState.collectAsState()
@@ -107,50 +108,88 @@ fun MainAppScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text(
-                            text = "PrivteLLM",
-                            color = AccentGreen,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                            color = AccentBlue.copy(alpha = 0.2f)
-                        ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "ON-DEVICE AI",
-                                color = AccentBlue,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                text = "PrivteLLM",
+                                color = NeonGreen,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 21.sp,
+                                letterSpacing = 0.5.sp
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = ElectricCyan.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "v1.0.0",
+                                    color = ElectricCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        // Memory Header Pill
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SpaceSurfaceVariant,
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+                            ),
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (memorySnapshot.availableRamMb < 450) CrimsonRed else NeonGreen)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "${memorySnapshot.availableRamMb} MB Free",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground,
+                    containerColor = SpaceBackground,
                     titleContentColor = TextPrimary
                 )
             )
         },
         bottomBar = {
             NavigationBar(
-                containerColor = DarkSurface,
+                containerColor = SpaceSurface,
                 contentColor = TextPrimary
             ) {
                 NavigationBarItem(
                     selected = selectedTab == MainTab.SERVER,
                     onClick = { selectedTab = MainTab.SERVER },
                     icon = { Icon(Icons.Default.Dns, contentDescription = "Dashboard") },
-                    label = { Text("Dashboard", fontSize = 11.sp) },
+                    label = { Text("Dashboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentGreen,
-                        selectedTextColor = AccentGreen,
+                        selectedIconColor = NeonGreen,
+                        selectedTextColor = NeonGreen,
                         unselectedIconColor = TextSecondary,
                         unselectedTextColor = TextSecondary,
-                        indicatorColor = AccentGreen.copy(alpha = 0.15f)
+                        indicatorColor = NeonGreenGlow
                     )
                 )
 
@@ -158,13 +197,13 @@ fun MainAppScreen(
                     selected = selectedTab == MainTab.MODELS,
                     onClick = { selectedTab = MainTab.MODELS },
                     icon = { Icon(Icons.Default.Store, contentDescription = "Model Store") },
-                    label = { Text("Model Store", fontSize = 11.sp) },
+                    label = { Text("Model Store", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
+                        selectedIconColor = ElectricCyan,
+                        selectedTextColor = ElectricCyan,
                         unselectedIconColor = TextSecondary,
                         unselectedTextColor = TextSecondary,
-                        indicatorColor = AccentBlue.copy(alpha = 0.15f)
+                        indicatorColor = ElectricCyanGlow
                     )
                 )
 
@@ -172,13 +211,13 @@ fun MainAppScreen(
                     selected = selectedTab == MainTab.CHAT,
                     onClick = { selectedTab = MainTab.CHAT },
                     icon = { Icon(Icons.Default.Chat, contentDescription = "Playground") },
-                    label = { Text("Playground", fontSize = 11.sp) },
+                    label = { Text("Playground", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentPurple,
-                        selectedTextColor = AccentPurple,
+                        selectedIconColor = PurpleAccent,
+                        selectedTextColor = PurpleAccent,
                         unselectedIconColor = TextSecondary,
                         unselectedTextColor = TextSecondary,
-                        indicatorColor = AccentPurple.copy(alpha = 0.15f)
+                        indicatorColor = Color(0x338B5CF6)
                     )
                 )
             }
@@ -188,7 +227,7 @@ fun MainAppScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(DarkBackground)
+                .background(SpaceBackground)
         ) {
             when (selectedTab) {
                 MainTab.SERVER -> {
@@ -199,7 +238,15 @@ fun MainAppScreen(
                         onToggleServer = { shouldStart ->
                             if (shouldStart) onStartServer() else onStopServer()
                         },
-                        onNavigateToModels = { selectedTab = MainTab.MODELS }
+                        onNavigateToModels = { selectedTab = MainTab.MODELS },
+                        onNavigateToChat = { selectedTab = MainTab.CHAT },
+                        onUnloadModel = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                NativeLib.releaseModel()
+                                loadedModel = null
+                                LocalAiServerService.setActiveModel(null)
+                            }
+                        }
                     )
                 }
 
@@ -214,7 +261,6 @@ fun MainAppScreen(
                                 val targetFile = downloader.getTargetFile(modelToLoad)
                                 if (targetFile.exists()) {
                                     withContext(Dispatchers.IO) {
-                                        // 4 threads default, 0 GPU layers (CPU NEON) or Vulkan if available, mmap = true, streaming = true
                                         val success = NativeLib.initModel(
                                             path = targetFile.absolutePath,
                                             nThreads = 4,
@@ -253,103 +299,230 @@ fun MainAppScreen(
 @Composable
 fun DashboardScreen(
     memorySnapshot: MemorySnapshot,
-    serverState: com.privtellm.server.ServerState,
+    serverState: ServerState,
     loadedModel: ModelItem?,
     onToggleServer: (Boolean) -> Unit,
     onNavigateToModels: () -> Unit,
+    onNavigateToChat: () -> Unit,
+    onUnloadModel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Hardware RAM Meter
+        // 1. Hardware RAM Meter HUD
         RamMeter(memorySnapshot = memorySnapshot)
 
-        // 2. OpenAI Local Server Card
+        // 2. OpenAI Local Server Console
         ServerStatusCard(
             serverState = serverState,
             onToggleServer = onToggleServer
         )
 
-        // 3. Active Loaded Model Card
+        // 3. Active Loaded Model HUD Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SpaceSurface),
             border = CardDefaults.outlinedCardBorder().copy(
-                brush = androidx.compose.ui.graphics.SolidColor(BorderColor)
+                brush = Brush.horizontalGradient(
+                    if (loadedModel != null)
+                        listOf(NeonGreen.copy(alpha = 0.6f), SpaceCardBorder)
+                    else
+                        listOf(SpaceCardBorder, SpaceCardBorder)
+                )
             )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(18.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "ACTIVE INFERENCE ENGINE",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (loadedModel != null) NeonGreenGlow else SpaceSurfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = "Active Engine",
+                                tint = if (loadedModel != null) NeonGreen else TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = "ACTIVE INFERENCE ENGINE",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp
+                            )
+                            Text(
+                                text = if (loadedModel != null) "C++20 NDK Tensor Pipeline Active" else "No Weights Loaded in RAM",
+                                color = if (loadedModel != null) NeonGreenDim else TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
 
                     if (loadedModel != null) {
                         Surface(
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-                            color = AccentGreen.copy(alpha = 0.2f)
+                            shape = RoundedCornerShape(8.dp),
+                            color = NeonGreenGlow
                         ) {
                             Text(
-                                text = "READY",
-                                color = AccentGreen,
+                                text = "PRIME",
+                                color = NeonGreen,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 if (loadedModel != null) {
                     Text(
                         text = loadedModel.name,
                         color = TextPrimary,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${loadedModel.parametersBillion}B parameters • Quant: ${loadedModel.quantization} • Context: ${loadedModel.contextLength}",
+                        text = "${loadedModel.parametersBillion}B params • ${loadedModel.quantization} • ${loadedModel.contextLength} context window • ${loadedModel.sizeFormatted}",
                         color = TextSecondary,
                         fontSize = 12.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace
                     )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onNavigateToChat,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null, tint = SpaceBackground, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open in Chat", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = onUnloadModel,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberAccent),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                brush = Brush.horizontalGradient(listOf(AmberAccent.copy(alpha = 0.6f), AmberAccent.copy(alpha = 0.2f)))
+                            ),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Unload RAM", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 } else {
                     Text(
-                        text = "No model loaded into NDK RAM",
-                        color = TextMuted,
-                        fontSize = 14.sp
+                        text = "Native RAM is currently cleared. Download and load a quantized model from the Model Store to start local inference.",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Button(
                         onClick = onNavigateToModels,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text("Browse Model Store", fontSize = 12.sp)
+                        Icon(Icons.Default.Store, contentDescription = null, tint = SpaceBackground, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Browse Curated Models", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+
+        // 4. Hardware System Specifications Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp)
+            ) {
+                Text(
+                    text = "ACCELERATION & RUNTIME SPECS",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    SpecItem(title = "NATIVE ABI", value = "arm64-v8a NEON")
+                    SpecItem(title = "C++ ENGINE", value = "C++20 NDK 26.x")
+                    SpecItem(title = "PARALLELISM", value = "OpenMP Multi-Core")
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    SpecItem(title = "GPU BACKEND", value = "Vulkan GGML")
+                    SpecItem(title = "MEMORY STREAM", value = "Mmap Layer Streamer")
+                    SpecItem(title = "SAFETY LIMIT", value = "450 MB Active LMK")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpecItem(title: String, value: String) {
+    Column {
+        Text(title, color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(value, color = TextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
     }
 }

@@ -117,4 +117,8 @@ done
 
 eval "set -- $APP_ARGS"
 
+if command -v gradle >/dev/null 2>&1; then
+    exec gradle "$@"
+fi
+
 exec "$JAVACMD" "-Dorg.gradle.appname=$APP_BASE_NAME" -jar "$CLASSPATH" "$@"

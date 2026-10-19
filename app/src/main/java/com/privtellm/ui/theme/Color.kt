@@ -2,25 +2,35 @@ package com.privtellm.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// High-tech Neon & Cyber Dark Palette for PrivteLLM
+val NeonGreen = Color(0xFF00FF9D)
+val NeonGreenDim = Color(0xFF00B36E)
+val NeonGreenGlow = Color(0x3300FF9D)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val ElectricCyan = Color(0xFF00E5FF)
+val ElectricCyanDim = Color(0xFF0099B3)
+val ElectricCyanGlow = Color(0x3300E5FF)
 
-// PrivteLLM Cyberpunk/Modern Dark Theme Colors
-val DarkBackground = Color(0xFF0F1117)
-val DarkSurface = Color(0xFF181B26)
-val DarkSurfaceVariant = Color(0xFF222638)
-val AccentGreen = Color(0xFF10B981)
-val AccentGreenGlow = Color(0x3310B981)
-val AccentBlue = Color(0xFF3B82F6)
-val AccentPurple = Color(0xFF8B5CF6)
-val AccentAmber = Color(0xFFF59E0B)
-val AccentRed = Color(0xFFEF4444)
-val TextPrimary = Color(0xFFF3F4F6)
-val TextSecondary = Color(0xFF9CA3AF)
-val TextMuted = Color(0xFF6B7280)
-val BorderColor = Color(0xFF2D3348)
+val IndigoAccent = Color(0xFF6366F1)
+val PurpleAccent = Color(0xFF8B5CF6)
+val AmberAccent = Color(0xFFF59E0B)
+val CrimsonRed = Color(0xFFFF0055)
+val CrimsonGlow = Color(0x33FF0055)
+
+// Deep Space Dark Surfaces
+val SpaceBackground = Color(0xFF0A0D14)
+val SpaceSurface = Color(0xFF111622)
+val SpaceSurfaceVariant = Color(0xFF1A2133)
+val SpaceCardBorder = Color(0xFF263047)
+val SpaceCardBorderGlow = Color(0xFF384566)
+
+// Text
+val TextPrimary = Color(0xFFF8FAFC)
+val TextSecondary = Color(0xFF94A3B8)
+val TextMuted = Color(0xFF64748B)
+
+// Status colors
+val StatusOnline = Color(0xFF00FF9D)
+val StatusWarning = Color(0xFFF59E0B)
+val StatusCritical = Color(0xFFFF0055)
+val StatusIdle = Color(0xFF38BDF8)

@@ -1,19 +1,30 @@
 package com.privtellm.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,36 +36,56 @@ import com.privtellm.ui.theme.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-data class UiChatMessage(
+data class PlaygroundMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val sender: String, // "user" or "assistant"
     val content: String,
     val isStreaming: Boolean = false,
     val tps: Double = 0.0,
-    val tokenCount: Int = 0
+    val tokenCount: Int = 0,
+    val timestamp: Long = System.currentTimeMillis()
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatPlaygroundScreen(
     loadedModel: ModelItem?,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var inputPrompt by remember { mutableStateOf("") }
-    val messages = remember { mutableStateListOf<UiChatMessage>() }
+    val messages = remember { mutableStateListOf<PlaygroundMessage>() }
     var isGenerating by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    // Inference Hyperparameters
+    var systemPrompt by remember { mutableStateOf("You are a helpful, concise AI assistant running 100% locally on an Android device.") }
+    var temperature by remember { mutableFloatStateOf(0.7f) }
+    var topP by remember { mutableFloatStateOf(0.9f) }
+
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    // Quick prompt chips
+    val promptSuggestions = listOf(
+        "⚡ Explain ARM NEON SIMD vectorization",
+        "🧩 Write a Kotlin Coroutine Flow example",
+        "🧠 How does 4-bit GGUF quantization work?",
+        "🔒 Why is on-device private AI important?"
+    )
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(SpaceBackground)
     ) {
-        // Header Info Bar
+        // Top Playground Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = DarkSurface,
-            shadowElevation = 2.dp
+            color = SpaceSurface,
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+            )
         ) {
             Row(
                 modifier = Modifier
@@ -63,97 +94,177 @@ fun ChatPlaygroundScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "ON-DEVICE INFERENCE PLAYGROUND",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (loadedModel != null) NeonGreen else AmberAccent)
                     )
-                    Text(
-                        text = loadedModel?.name ?: "No Model Loaded",
-                        color = if (loadedModel != null) AccentGreen else AccentAmber,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = loadedModel?.name ?: "No Model In RAM",
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (loadedModel != null)
+                                "${loadedModel.quantization} • ${loadedModel.parametersBillion}B params • temp: ${String.format("%.1f", temperature)}"
+                            else
+                                "Load a model from Model Store",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
 
-                if (loadedModel != null) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = AccentGreen.copy(alpha = 0.15f)
+                Row {
+                    // Hyperparameter Settings Button
+                    IconButton(
+                        onClick = { showSettingsDialog = true },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Text(
-                            text = "${loadedModel.quantization} • ${loadedModel.parametersBillion}B",
-                            color = AccentGreen,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Parameters",
+                            tint = ElectricCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Clear Chat Button
+                    IconButton(
+                        onClick = { messages.clear() },
+                        enabled = messages.isNotEmpty(),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = "Clear Chat",
+                            tint = if (messages.isNotEmpty()) TextSecondary else TextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
         }
 
-        // Messages List
+        // Messages Feed
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
         ) {
             if (messages.isEmpty()) {
                 item {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 40.dp),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "💬 Local Neural Engine",
-                                color = TextPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = if (loadedModel != null)
-                                    "Type a prompt below to run inference 100% locally on your ARM64 NPU/GPU/CPU."
-                                else
-                                    "Please download and load a model from the Model Store tab first.",
-                                color = TextMuted,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 32.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = SpaceSurfaceVariant,
+                            modifier = Modifier.size(60.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = NeonGreen,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "On-Device Neural Engine",
+                            color = TextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = if (loadedModel != null)
+                                "Model '${loadedModel.name}' is primed in RAM. Chat responses stream directly from local C++20 NDK tensors."
+                            else
+                                "Please go to the 'Model Store' tab and load a quantized model into RAM to begin.",
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
                     }
                 }
             }
 
             items(messages, key = { it.id }) { message ->
-                ChatBubble(message = message)
+                PlaygroundBubble(
+                    message = message,
+                    onCopy = {
+                        val clip = ClipData.newPlainText("AI Response", message.content)
+                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
+                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        // Quick Prompt Suggestions Row
+        if (loadedModel != null && !isGenerating && messages.isEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(promptSuggestions) { suggestion ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = SpaceSurface,
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+                        ),
+                        modifier = Modifier.clickable {
+                            inputPrompt = suggestion
+                        }
+                    ) {
+                        Text(
+                            text = suggestion,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
             }
         }
 
         // Input & Controls Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = DarkSurface,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            tonalElevation = 4.dp
+            color = SpaceSurface,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+            )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextField(
@@ -161,51 +272,52 @@ fun ChatPlaygroundScreen(
                     onValueChange = { inputPrompt = it },
                     placeholder = {
                         Text(
-                            text = if (loadedModel != null) "Send prompt to ${loadedModel.name}..." else "Load a model first...",
+                            text = if (loadedModel != null) "Message ${loadedModel.name}..." else "Load a model in Model Store first...",
                             color = TextMuted,
                             fontSize = 14.sp
                         )
                     },
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = DarkSurfaceVariant,
-                        unfocusedContainerColor = DarkSurfaceVariant,
+                        focusedContainerColor = SpaceSurfaceVariant,
+                        unfocusedContainerColor = SpaceSurfaceVariant,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     maxLines = 4,
                     enabled = !isGenerating && loadedModel != null
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 if (isGenerating) {
                     IconButton(
                         onClick = { NativeLib.stopGeneration() },
                         modifier = Modifier
                             .size(48.dp)
-                            .background(AccentRed, RoundedCornerShape(12.dp))
+                            .background(CrimsonRed, RoundedCornerShape(14.dp))
                     ) {
                         Icon(
                             imageVector = Icons.Default.Stop,
-                            contentDescription = "Stop",
-                            tint = Color.White
+                            contentDescription = "Stop Generation",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 } else {
                     IconButton(
                         onClick = {
-                            val promptToSend = inputPrompt.trim()
-                            if (promptToSend.isNotEmpty() && loadedModel != null) {
+                            val userText = inputPrompt.trim()
+                            if (userText.isNotEmpty() && loadedModel != null) {
                                 inputPrompt = ""
-                                messages.add(UiChatMessage(sender = "user", content = promptToSend))
+                                messages.add(PlaygroundMessage(sender = "user", content = userText))
 
-                                val assistantMsgIndex = messages.size
+                                val assistantIndex = messages.size
                                 messages.add(
-                                    UiChatMessage(
+                                    PlaygroundMessage(
                                         sender = "assistant",
                                         content = "",
                                         isStreaming = true
@@ -216,22 +328,23 @@ fun ChatPlaygroundScreen(
 
                                 coroutineScope.launch {
                                     listState.animateScrollToItem(messages.size - 1)
-                                    val stream = NativeLib.generateStream(promptToSend)
+                                    val formattedPrompt = "<|im_start|>system\n$systemPrompt<|im_end|>\n<|im_start|>user\n$userText<|im_end|>\n<|im_start|>assistant\n"
+                                    val stream = NativeLib.generateStream(formattedPrompt)
                                     val fullResponse = StringBuilder()
 
                                     stream.collect { chunk: GenerationChunk ->
                                         if (chunk.token.isNotEmpty()) {
                                             fullResponse.append(chunk.token)
-                                            messages[assistantMsgIndex] = messages[assistantMsgIndex].copy(
+                                            messages[assistantIndex] = messages[assistantIndex].copy(
                                                 content = fullResponse.toString(),
                                                 tokenCount = fullResponse.length / 4
                                             )
                                         }
 
                                         if (chunk.isFinished) {
-                                            messages[assistantMsgIndex] = messages[assistantMsgIndex].copy(
+                                            messages[assistantIndex] = messages[assistantIndex].copy(
                                                 content = if (chunk.error != null)
-                                                    "⚠️ Error: ${chunk.error}"
+                                                    "⚠️ ${chunk.error}"
                                                 else
                                                     fullResponse.toString(),
                                                 isStreaming = false,
@@ -248,65 +361,200 @@ fun ChatPlaygroundScreen(
                         modifier = Modifier
                             .size(48.dp)
                             .background(
-                                if (inputPrompt.isNotBlank() && loadedModel != null) AccentGreen else DarkSurfaceVariant,
-                                RoundedCornerShape(12.dp)
+                                if (inputPrompt.isNotBlank() && loadedModel != null) NeonGreen else SpaceSurfaceVariant,
+                                RoundedCornerShape(14.dp)
                             )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Send,
-                            contentDescription = "Send",
-                            tint = if (inputPrompt.isNotBlank() && loadedModel != null) DarkBackground else TextMuted
+                            contentDescription = "Send Prompt",
+                            tint = if (inputPrompt.isNotBlank() && loadedModel != null) SpaceBackground else TextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
         }
     }
+
+    // Parameters Modal Dialog
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = {
+                Text("Inference Parameters", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column {
+                        Text("System Prompt", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        TextField(
+                            value = systemPrompt,
+                            onValueChange = { systemPrompt = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = SpaceSurfaceVariant,
+                                unfocusedContainerColor = SpaceSurfaceVariant,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Temperature", color = TextSecondary, fontSize = 12.sp)
+                            Text(String.format("%.2f", temperature), color = NeonGreen, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                        Slider(
+                            value = temperature,
+                            onValueChange = { temperature = it },
+                            valueRange = 0.0f..1.5f,
+                            colors = SliderDefaults.colors(thumbColor = NeonGreen, activeTrackColor = NeonGreen)
+                        )
+                    }
+
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Top-P", color = TextSecondary, fontSize = 12.sp)
+                            Text(String.format("%.2f", topP), color = ElectricCyan, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                        Slider(
+                            value = topP,
+                            onValueChange = { topP = it },
+                            valueRange = 0.1f..1.0f,
+                            colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSettingsDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen)
+                ) {
+                    Text("Apply", color = SpaceBackground, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = SpaceSurface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 }
 
 @Composable
-fun ChatBubble(message: UiChatMessage) {
+fun PlaygroundBubble(
+    message: PlaygroundMessage,
+    onCopy: () -> Unit
+) {
     val isUser = message.sender == "user"
+
+    // Blinking cursor transition for streaming assistant text
+    val infiniteTransition = rememberInfiniteTransition(label = "CursorBlink")
+    val cursorAlpha by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CursorAlpha"
+    )
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
         Surface(
             shape = RoundedCornerShape(
-                topStart = 14.dp,
-                topEnd = 14.dp,
-                bottomStart = if (isUser) 14.dp else 2.dp,
-                bottomEnd = if (isUser) 2.dp else 14.dp
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (isUser) 16.dp else 2.dp,
+                bottomEnd = if (isUser) 2.dp else 16.dp
             ),
-            color = if (isUser) DarkSurfaceVariant else DarkSurface,
+            color = if (isUser) SpaceSurfaceVariant else SpaceSurface,
             border = if (!isUser) CardDefaults.outlinedCardBorder().copy(
-                brush = androidx.compose.ui.graphics.SolidColor(BorderColor)
-            ) else null
+                brush = Brush.horizontalGradient(listOf(SpaceCardBorderGlow, SpaceCardBorder))
+            ) else null,
+            modifier = Modifier.widthIn(max = 340.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = if (isUser) "You" else "PrivteLLM Engine",
-                    color = if (isUser) AccentBlue else AccentGreen,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = message.content.ifEmpty { if (message.isStreaming) "Thinking..." else "" },
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-
-                if (!isUser && !message.isStreaming && message.tps > 0) {
-                    Spacer(modifier = Modifier.height(6.dp))
+            Column(modifier = Modifier.padding(14.dp)) {
+                // Sender Label & Copy Icon Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "⚡ ${String.format("%.1f", message.tps)} tok/s • ${message.tokenCount} tokens",
-                        color = AccentGreen,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium
+                        text = if (isUser) "You" else "PrivteLLM Engine",
+                        color = if (isUser) ElectricCyan else NeonGreen,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
                     )
+
+                    if (!isUser && message.content.isNotEmpty() && !message.isStreaming) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = TextMuted,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clickable { onCopy() }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Message Text with Animated Cursor
+                Row {
+                    Text(
+                        text = message.content.ifEmpty { if (message.isStreaming) "Inferring..." else "" },
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp
+                    )
+                    if (message.isStreaming) {
+                        Box(
+                            modifier = Modifier
+                                .width(6.dp)
+                                .height(16.dp)
+                                .offset(x = 2.dp, y = 2.dp)
+                                .background(NeonGreen.copy(alpha = cursorAlpha))
+                        )
+                    }
+                }
+
+                // Telemetry Footer for Assistant Responses
+                if (!isUser && !message.isStreaming && message.tps > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = SpaceBackground
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "⚡ ${String.format("%.1f", message.tps)} tok/s",
+                                color = NeonGreen,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "• ${message.tokenCount} tokens",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
                 }
             }
         }
