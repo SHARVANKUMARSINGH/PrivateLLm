@@ -65,17 +65,34 @@ jobs:
       - name: Build Debug & Release APKs
         run: ./gradlew assembleDebug assembleRelease --stacktrace
 
+      - name: Determine Release Tag & Title
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+            TITLE="${{ github.event.inputs.release_title }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            TITLE="PrivteLLM ${TAG} - Production On-Device LLM & Local OpenAI Server"
+          else
+            TAG="v1.1.0"
+            TITLE="PrivteLLM v1.1.0 - Production On-Device LLM & Local OpenAI Server"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
       - name: Package & Prepare Release Artifacts
         run: |
           mkdir -p release_artifacts
+          TAG="${{ steps.release_info.outputs.tag }}"
           
-          # Find and copy generated APKs
+          # Find and copy generated APKs with dynamic version tag
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk release_artifacts/PrivteLLM-v1.0.0-release.apk
+            cp app/build/outputs/apk/release/app-release.apk "release_artifacts/PrivteLLM-${TAG}-release.apk"
           fi
           
           if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk release_artifacts/PrivteLLM-v1.0.0-debug.apk
+            cp app/build/outputs/apk/debug/app-debug.apk "release_artifacts/PrivteLLM-${TAG}-debug.apk"
           fi
           
           # Generate SHA-256 Checksums
@@ -90,22 +107,6 @@ jobs:
           name: privtellm-apks
           path: release_artifacts/*
           retention-days: 14
-
-      - name: Determine Release Tag & Title
-        id: release_info
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.release_tag }}"
-            TITLE="${{ github.event.inputs.release_title }}"
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            TITLE="PrivteLLM ${TAG} - Production On-Device LLM & Local OpenAI Server"
-          else
-            TAG="v1.0.0"
-            TITLE="PrivteLLM v1.0.0 - Production On-Device LLM & Local OpenAI Server"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
 
       - name: Publish Release with APK to GitHub Releases Page
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true }}
