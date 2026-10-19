@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -45,11 +45,10 @@ import kotlinx.coroutines.withContext
 enum class MainTab(val title: String) {
     SERVER("Dashboard"),
     MODELS("Models"),
-    CHAT("Playground"),
+    CHAT("Chat"),
     STUDIO("Studio"),
     TERMINAL("Terminal")
 }
-
 
 class MainActivity : ComponentActivity() {
 
@@ -116,115 +115,129 @@ fun MainAppScreen(
             TopAppBar(
                 title = {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Google Brand Header
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = colorScheme.primaryContainer,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "PrivteLLM",
-                                color = AccentBlue,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 21.sp,
-                                letterSpacing = 0.5.sp
+                                style = MaterialTheme.typography.titleLarge,
+                                color = colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = AccentBlueGlow
+                                shape = RoundedCornerShape(12.dp),
+                                color = colorScheme.secondaryContainer
                             ) {
                                 Text(
-                                    text = "v1.0.0",
-                                    color = AccentBlue,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    text = "v1.2.0",
+                                    color = colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                                 )
                             }
                         }
 
-                        // Memory Header Pill
+                        // Google Style Memory Status Pill
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = colorScheme.surfaceVariant,
-                            border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f)))
-                            ),
-                            modifier = Modifier.padding(end = 12.dp)
+                            border = BorderStroke(1.dp, colorScheme.outlineVariant)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(6.dp)
+                                        .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (memorySnapshot.availableRamMb < 450) StatusCritical else AccentBlue)
+                                        .background(
+                                            if (memorySnapshot.availableRamMb < 450) colorScheme.error
+                                            else colorScheme.primary
+                                        )
                                 )
-                                Spacer(modifier = Modifier.width(5.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "${memorySnapshot.availableRamMb} MB Free",
-                                    color = colorScheme.onSurface,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    color = colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colorScheme.background,
-                    titleContentColor = colorScheme.onBackground
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onSurface
                 )
             )
         },
         bottomBar = {
             NavigationBar(
                 containerColor = colorScheme.surface,
-                contentColor = colorScheme.onSurface
+                tonalElevation = 2.dp
             ) {
                 NavigationBarItem(
                     selected = selectedTab == MainTab.SERVER,
                     onClick = { selectedTab = MainTab.SERVER },
                     icon = { Icon(Icons.Default.Dns, contentDescription = "Dashboard") },
-                    label = { Text("Dashboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Dashboard", style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
-                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        indicatorColor = AccentBlueGlow
+                        selectedIconColor = colorScheme.onSecondaryContainer,
+                        selectedTextColor = colorScheme.onSurface,
+                        indicatorColor = colorScheme.secondaryContainer,
+                        unselectedIconColor = colorScheme.onSurfaceVariant,
+                        unselectedTextColor = colorScheme.onSurfaceVariant
                     )
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == MainTab.MODELS,
                     onClick = { selectedTab = MainTab.MODELS },
-                    icon = { Icon(Icons.Default.Store, contentDescription = "Model Store") },
-                    label = { Text("Model Store", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    icon = { Icon(Icons.Default.Store, contentDescription = "Models") },
+                    label = { Text("Models", style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
-                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        indicatorColor = AccentBlueGlow
+                        selectedIconColor = colorScheme.onSecondaryContainer,
+                        selectedTextColor = colorScheme.onSurface,
+                        indicatorColor = colorScheme.secondaryContainer,
+                        unselectedIconColor = colorScheme.onSurfaceVariant,
+                        unselectedTextColor = colorScheme.onSurfaceVariant
                     )
                 )
 
                 NavigationBarItem(
                     selected = selectedTab == MainTab.CHAT,
                     onClick = { selectedTab = MainTab.CHAT },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Playground") },
-                    label = { Text("Playground", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    icon = { Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Chat") },
+                    label = { Text("Chat", style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
-                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        indicatorColor = AccentBlueGlow
+                        selectedIconColor = colorScheme.onSecondaryContainer,
+                        selectedTextColor = colorScheme.onSurface,
+                        indicatorColor = colorScheme.secondaryContainer,
+                        unselectedIconColor = colorScheme.onSurfaceVariant,
+                        unselectedTextColor = colorScheme.onSurfaceVariant
                     )
                 )
 
@@ -232,13 +245,13 @@ fun MainAppScreen(
                     selected = selectedTab == MainTab.STUDIO,
                     onClick = { selectedTab = MainTab.STUDIO },
                     icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Studio") },
-                    label = { Text("Studio", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Studio", style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
-                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        indicatorColor = AccentBlueGlow
+                        selectedIconColor = colorScheme.onSecondaryContainer,
+                        selectedTextColor = colorScheme.onSurface,
+                        indicatorColor = colorScheme.secondaryContainer,
+                        unselectedIconColor = colorScheme.onSurfaceVariant,
+                        unselectedTextColor = colorScheme.onSurfaceVariant
                     )
                 )
 
@@ -246,18 +259,17 @@ fun MainAppScreen(
                     selected = selectedTab == MainTab.TERMINAL,
                     onClick = { selectedTab = MainTab.TERMINAL },
                     icon = { Icon(Icons.Default.Terminal, contentDescription = "Terminal") },
-                    label = { Text("Terminal", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Terminal", style = MaterialTheme.typography.labelMedium) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AccentBlue,
-                        selectedTextColor = AccentBlue,
-                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
-                        indicatorColor = AccentBlueGlow
+                        selectedIconColor = colorScheme.onSecondaryContainer,
+                        selectedTextColor = colorScheme.onSurface,
+                        indicatorColor = colorScheme.secondaryContainer,
+                        unselectedIconColor = colorScheme.onSurfaceVariant,
+                        unselectedTextColor = colorScheme.onSurfaceVariant
                     )
                 )
             }
         }
-
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -383,7 +395,6 @@ fun MainAppScreen(
     }
 }
 
-
 @Composable
 fun DashboardScreen(
     memorySnapshot: MemorySnapshot,
@@ -404,7 +415,7 @@ fun DashboardScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Hardware RAM Meter HUD
+        // 1. Hardware RAM Meter
         RamMeter(memorySnapshot = memorySnapshot)
 
         // 2. OpenAI Local Server Console
@@ -413,24 +424,17 @@ fun DashboardScreen(
             onToggleServer = onToggleServer
         )
 
-        // 3. Active Loaded Model Card
+        // 3. Active Loaded Model Card (Google Card Style)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(
-                    if (loadedModel != null)
-                        listOf(AccentBlue.copy(alpha = 0.6f), colorScheme.outline.copy(alpha = 0.4f))
-                    else
-                        listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
-                )
-            )
+            border = BorderStroke(1.dp, colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(18.dp)
+                    .padding(20.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -438,51 +442,50 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (loadedModel != null) AccentBlueGlow else colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            shape = CircleShape,
+                            color = if (loadedModel != null) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = "Active Engine",
-                                tint = if (loadedModel != null) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = "Active Engine",
+                                    tint = if (loadedModel != null) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
                             Text(
-                                text = "ACTIVE INFERENCE ENGINE",
+                                text = "Active Inference Engine",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
+                                fontWeight = FontWeight.Bold
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (loadedModel != null) "C++20 NDK Tensor Pipeline Active" else "No Weights Loaded in RAM",
-                                color = if (loadedModel != null) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
-                                fontSize = 11.sp
+                                text = if (loadedModel != null) "llama.cpp C++20 NDK Pipeline Active" else "No Weights Loaded in RAM",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (loadedModel != null) colorScheme.primary else colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
                     if (loadedModel != null) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = AccentBlueGlow
+                            shape = RoundedCornerShape(12.dp),
+                            color = colorScheme.primaryContainer
                         ) {
                             Text(
-                                text = "PRIME",
-                                color = AccentBlue,
-                                fontSize = 10.sp,
+                                text = "LOADED",
+                                color = colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -493,114 +496,106 @@ fun DashboardScreen(
                 if (loadedModel != null) {
                     Text(
                         text = loadedModel.name,
+                        style = MaterialTheme.typography.titleLarge,
                         color = colorScheme.onSurface,
-                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${loadedModel.parametersBillion}B params • ${loadedModel.quantization} • ${loadedModel.contextLength} context window • ${loadedModel.sizeFormatted}",
-                        color = colorScheme.onSurface.copy(alpha = 0.65f),
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
+                        text = "${loadedModel.parametersBillion}B parameters • ${loadedModel.quantization} • ${loadedModel.contextLength} tokens • ${loadedModel.sizeFormatted}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Button(
                             onClick = onNavigateToChat,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                            contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Open in Chat", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Open in Chat", style = MaterialTheme.typography.labelLarge)
                         }
 
                         OutlinedButton(
                             onClick = onUnloadModel,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(StatusWarning.copy(alpha = 0.6f), StatusWarning.copy(alpha = 0.2f)))
-                            ),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.error),
+                            contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
-                            Text("Unload RAM", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Unload RAM", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 } else {
                     Text(
-                        text = "Native RAM is currently cleared. Download and load a quantized model from the Model Store to start local inference.",
-                        color = colorScheme.onSurface.copy(alpha = 0.7f),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
+                        text = "Native RAM is currently cleared. Download and load a quantized model from the Models tab to start local inference.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    Button(
+                    FilledTonalButton(
                         onClick = onNavigateToModels,
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                     ) {
-                        Icon(Icons.Default.Store, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Browse Curated Models", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Store, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Browse Models", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
         }
 
-        // 4. Runtime Specifications Card
+        // 4. Runtime Specifications Card (Google Pixel Settings Style)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f)))
-            )
+            border = BorderStroke(1.dp, colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(18.dp)
+                    .padding(20.dp)
             ) {
                 Text(
-                    text = "RUNTIME & ACCELERATION SPECS",
-                    color = colorScheme.onSurface.copy(alpha = 0.6f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    text = "System Acceleration Specs",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SpecItem(title = "NATIVE ABI", value = "arm64-v8a NEON")
-                    SpecItem(title = "C++ ENGINE", value = "C++20 NDK 26.x")
-                    SpecItem(title = "PARALLELISM", value = "OpenMP Multi-Core")
+                    SpecItem(title = "NATIVE ARCH", value = "arm64-v8a NEON")
+                    SpecItem(title = "COMPILER", value = "C++20 NDK 26.x")
+                    SpecItem(title = "VECTOR ENGINE", value = "OpenMP Multi-Core")
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SpecItem(title = "GPU BACKEND", value = "Vulkan GGML")
-                    SpecItem(title = "MEMORY STREAM", value = "Mmap Layer Streamer")
+                    SpecItem(title = "TENSOR BACKEND", value = "GGML Vectorized")
+                    SpecItem(title = "RAM PIPELINE", value = "Mmap Layer Streamer")
                     SpecItem(title = "SAFETY LIMIT", value = "450 MB Active LMK")
                 }
             }
@@ -611,9 +606,25 @@ fun DashboardScreen(
 @Composable
 private fun SpecItem(title: String, value: String) {
     val colorScheme = MaterialTheme.colorScheme
-    Column {
-        Text(title, color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(value, color = colorScheme.onSurface, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.widthIn(min = 96.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }

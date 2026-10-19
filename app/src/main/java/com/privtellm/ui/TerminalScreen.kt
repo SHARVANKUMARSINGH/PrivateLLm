@@ -1,5 +1,6 @@
 package com.privtellm.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -24,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.privtellm.ui.theme.AccentBlue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +44,7 @@ data class TerminalEntry(
 @Composable
 fun TerminalScreen() {
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -136,12 +137,12 @@ fun TerminalScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF06090F))
+            .background(colorScheme.background)
     ) {
-        // Terminal Header Bar
+        // Terminal Header Bar (Google Cloud Shell Style)
         Surface(
-            color = Color(0xFF0D1117),
-            border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF21262D))),
+            color = colorScheme.surface,
+            border = BorderStroke(1.dp, colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -151,26 +152,28 @@ fun TerminalScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.Terminal,
-                        contentDescription = "Termux Console",
-                        tint = AccentBlue,
+                        contentDescription = "Cloud Shell",
+                        tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "PrivteLLM Shell / Termux Console",
-                            color = Color(0xFFE6EDF3),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            text = "Terminal / Shell",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = currentDir.absolutePath,
-                            color = Color(0xFF8B949E),
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1
                         )
@@ -182,10 +185,10 @@ fun TerminalScreen() {
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Clear Console",
-                        tint = Color(0xFF8B949E),
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Default.DeleteSweep,
+                        contentDescription = "Clear Terminal",
+                        tint = colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -196,28 +199,29 @@ fun TerminalScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             quickCommands.forEach { cmd ->
                 Surface(
                     onClick = { executeCommand(cmd) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF161B22),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF30363D)))
+                    shape = RoundedCornerShape(16.dp),
+                    color = colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, colorScheme.outlineVariant)
                 ) {
                     Text(
                         text = cmd,
-                        color = Color(0xFF58A6FF),
-                        fontSize = 11.sp,
+                        color = colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
         }
 
-        Divider(color = Color(0xFF21262D), thickness = 1.dp)
+        Divider(color = colorScheme.outlineVariant, thickness = 1.dp)
 
         // Terminal Output Log
         SelectionContainer(
@@ -229,24 +233,24 @@ fun TerminalScreen() {
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (entries.isEmpty()) {
                     item {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "PrivteLLM Linux Environment",
-                                color = Color(0xFF3FB950),
-                                fontSize = 13.sp,
+                                text = "PrivteLLM On-Device Shell Environment",
+                                color = colorScheme.primary,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Built-in /system/bin/sh execution environment.\nType shell commands or tap the quick action chips above.",
-                                color = Color(0xFF8B949E),
-                                fontSize = 12.sp,
+                                text = "Direct /system/bin/sh sandbox execution.\nType shell commands or tap the quick action chips above.",
+                                color = colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -259,35 +263,35 @@ fun TerminalScreen() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "privtellm@android",
-                                color = Color(0xFF3FB950),
-                                fontSize = 12.sp,
+                                color = colorScheme.tertiary,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = ":",
-                                color = Color(0xFF8B949E),
-                                fontSize = 12.sp,
+                                color = colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace
                             )
                             Text(
                                 text = entry.directory.replace(context.filesDir.absolutePath, "~"),
-                                color = Color(0xFF58A6FF),
-                                fontSize = 12.sp,
+                                color = colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
                                 text = "$ ",
-                                color = Color(0xFFE6EDF3),
-                                fontSize = 12.sp,
+                                color = colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = entry.command,
-                                color = Color(0xFFF0F6FC),
-                                fontSize = 12.sp,
+                                color = colorScheme.onSurface,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -297,10 +301,10 @@ fun TerminalScreen() {
                         // Command Output
                         Text(
                             text = entry.output.trimEnd(),
-                            color = if (entry.exitCode == 0) Color(0xFFC9D1D9) else Color(0xFFFFA198),
-                            fontSize = 11.5.sp,
+                            color = if (entry.exitCode == 0) colorScheme.onSurface else colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
-                            lineHeight = 16.sp
+                            lineHeight = 17.sp
                         )
                     }
                 }
@@ -309,8 +313,8 @@ fun TerminalScreen() {
 
         // Input Field Bar
         Surface(
-            color = Color(0xFF0D1117),
-            border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF21262D))),
+            color = colorScheme.surface,
+            border = BorderStroke(1.dp, colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -321,7 +325,7 @@ fun TerminalScreen() {
             ) {
                 Text(
                     text = "$",
-                    color = Color(0xFF3FB950),
+                    color = colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
@@ -334,21 +338,21 @@ fun TerminalScreen() {
                     placeholder = {
                         Text(
                             text = "Enter shell command...",
-                            color = Color(0xFF8B949E),
-                            fontSize = 13.sp,
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace
                         )
                     },
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF161B22),
-                        unfocusedContainerColor = Color(0xFF161B22),
-                        focusedTextColor = Color(0xFFF0F6FC),
-                        unfocusedTextColor = Color(0xFFF0F6FC),
+                        focusedContainerColor = colorScheme.surfaceVariant,
+                        unfocusedContainerColor = colorScheme.surfaceVariant,
+                        focusedTextColor = colorScheme.onSurface,
+                        unfocusedTextColor = colorScheme.onSurface,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { executeCommand(commandInput) })
@@ -356,19 +360,19 @@ fun TerminalScreen() {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                IconButton(
+                FilledIconButton(
                     onClick = { executeCommand(commandInput) },
                     enabled = commandInput.isNotBlank() && !isExecuting,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            if (commandInput.isNotBlank() && !isExecuting) AccentBlue else Color(0xFF21262D),
-                            RoundedCornerShape(8.dp)
-                        )
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.size(42.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = colorScheme.primary,
+                        contentColor = colorScheme.onPrimary
+                    )
                 ) {
                     if (isExecuting) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = colorScheme.onPrimary,
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp
                         )
@@ -376,7 +380,6 @@ fun TerminalScreen() {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Execute Command",
-                            tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                     }

@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +29,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.sp
 import com.privtellm.hub.ModelItem
 import com.privtellm.nativebridge.GenerationChunk
 import com.privtellm.nativebridge.NativeLib
-import com.privtellm.ui.theme.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -106,10 +105,10 @@ fun ChatPlaygroundScreen(
     val listState = rememberLazyListState()
 
     val promptSuggestions = listOf(
-        "⚡ Explain ARM NEON SIMD vectorization",
-        "🧩 Write a Kotlin Coroutine Flow example",
-        "🧠 How does 4-bit GGUF quantization work?",
-        "🔒 Why is on-device private AI important?"
+        "Explain ARM NEON vectorization",
+        "Write a Kotlin Coroutine Flow example",
+        "How does 4-bit GGUF quantization work?",
+        "Why is on-device private AI important?"
     )
 
     Column(
@@ -117,13 +116,11 @@ fun ChatPlaygroundScreen(
             .fillMaxSize()
             .background(colorScheme.background)
     ) {
-        // Top Playground Bar
+        // Top Model Status Bar (Clean Google Surface)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = colorScheme.surface,
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f)))
-            )
+            border = BorderStroke(1.dp, colorScheme.outlineVariant)
         ) {
             Row(
                 modifier = Modifier
@@ -132,35 +129,37 @@ fun ChatPlaygroundScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(if (loadedModel != null) AccentBlue else StatusWarning)
+                            .background(if (loadedModel != null) colorScheme.primary else colorScheme.outline)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = loadedModel?.name ?: "No Model Loaded",
+                            style = MaterialTheme.typography.titleSmall,
                             color = colorScheme.onSurface,
-                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (loadedModel != null)
                                 "${loadedModel.quantization} • ${loadedModel.parametersBillion}B params • temp: ${String.format("%.1f", temperature)}"
                             else
-                                "Load a model in Model Store to chat",
-                            color = colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
+                                "Load a model in Models tab to chat",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                Row {
-                    // Hyperparameter Settings Button
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { showSettingsDialog = true },
                         modifier = Modifier.size(36.dp)
@@ -168,12 +167,11 @@ fun ChatPlaygroundScreen(
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Parameters",
-                            tint = AccentBlue,
+                            tint = colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    // Clear Chat Button
                     IconButton(
                         onClick = { messages.clear() },
                         enabled = messages.isNotEmpty(),
@@ -182,7 +180,7 @@ fun ChatPlaygroundScreen(
                         Icon(
                             imageVector = Icons.Default.DeleteSweep,
                             contentDescription = "Clear Chat",
-                            tint = if (messages.isNotEmpty()) colorScheme.onSurface.copy(alpha = 0.7f) else colorScheme.onSurface.copy(alpha = 0.3f),
+                            tint = if (messages.isNotEmpty()) colorScheme.onSurfaceVariant else colorScheme.outlineVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -197,7 +195,7 @@ fun ChatPlaygroundScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
         ) {
             if (messages.isEmpty()) {
@@ -205,30 +203,30 @@ fun ChatPlaygroundScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 40.dp),
+                            .padding(top = 48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = colorScheme.surfaceVariant,
-                            modifier = Modifier.size(60.dp)
+                            color = colorScheme.primaryContainer,
+                            modifier = Modifier.size(64.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
-                                    tint = AccentBlue,
-                                    modifier = Modifier.size(30.dp)
+                                    tint = colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(32.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
                         Text(
-                            text = "On-Device Neural Engine",
+                            text = "Private Neural Chat",
+                            style = MaterialTheme.typography.titleLarge,
                             color = colorScheme.onBackground,
-                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -236,13 +234,13 @@ fun ChatPlaygroundScreen(
 
                         Text(
                             text = if (loadedModel != null)
-                                "Model '${loadedModel.name}' is primed in RAM. Real llama.cpp GGUF inference ready."
+                                "'${loadedModel.name}' is loaded in RAM. Ready for private, offline conversation."
                             else
-                                "Please go to the 'Models' tab and load a quantized model into RAM to begin.",
-                            color = colorScheme.onBackground.copy(alpha = 0.65f),
-                            fontSize = 13.sp,
+                                "Go to the 'Models' tab and load a quantized model into RAM to begin.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colorScheme.onBackground.copy(alpha = 0.7f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 24.dp)
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         )
                     }
                 }
@@ -264,44 +262,42 @@ fun ChatPlaygroundScreen(
             }
         }
 
-        // Quick Prompt Suggestions Row
+        // Quick Prompt Suggestions Row (Google Gemini Style Pills)
         if (loadedModel != null && !isGenerating && messages.isEmpty()) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(promptSuggestions) { suggestion ->
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = colorScheme.surface,
-                        border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f)))
-                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        color = colorScheme.surfaceVariant,
                         modifier = Modifier.clickable {
                             inputPrompt = suggestion
                         }
                     ) {
                         Text(
                             text = suggestion,
-                            color = colorScheme.onSurface.copy(alpha = 0.75f),
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            color = colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
                 }
             }
         }
 
-        // Input & Controls Bar
+        // Floating Capsule Input Bar (Google Messages / Gemini Style)
         Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f)))
-            )
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = colorScheme.surfaceVariant,
+            tonalElevation = 3.dp
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Attached Image Thumbnail Preview Bar
@@ -310,7 +306,6 @@ fun ChatPlaygroundScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(colorScheme.surfaceVariant)
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -328,37 +323,37 @@ fun ChatPlaygroundScreen(
                                         bitmap = bitmap.asImageBitmap(),
                                         contentDescription = "Attached Image",
                                         modifier = Modifier
-                                            .size(42.dp)
-                                            .clip(RoundedCornerShape(8.dp)),
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(10.dp)),
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
-                                    Icon(Icons.Default.Image, contentDescription = null, tint = AccentBlue)
+                                    Icon(Icons.Default.Image, contentDescription = null, tint = colorScheme.primary)
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
                                         text = "Vision Input Attached",
+                                        style = MaterialTheme.typography.titleSmall,
                                         color = colorScheme.onSurface,
-                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Image will be processed with prompt",
-                                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                                        fontSize = 11.sp
+                                        text = "Image will be sent with prompt",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
                             IconButton(
                                 onClick = { attachedImageUri = null },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(30.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Remove Image",
-                                    tint = colorScheme.onSurface.copy(alpha = 0.7f),
+                                    tint = colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -369,25 +364,23 @@ fun ChatPlaygroundScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Plus (+) Attachment Icon for Vision Images
+                    // Vision Image Attachment (+) Button
                     IconButton(
                         onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.AddPhotoAlternate,
-                            contentDescription = "Attach Vision Image",
-                            tint = if (attachedImageUri != null) AccentBlue else colorScheme.onSurface.copy(alpha = 0.7f),
+                            contentDescription = "Attach Image",
+                            tint = if (attachedImageUri != null) colorScheme.primary else colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     TextField(
                         value = inputPrompt,
@@ -398,42 +391,41 @@ fun ChatPlaygroundScreen(
                                     if (attachedImageUri != null) "Ask about this image..." else "Message ${loadedModel.name}..."
                                 else
                                     "Load a model in Models tab first...",
-                                color = colorScheme.onSurface.copy(alpha = 0.45f),
-                                fontSize = 14.sp
+                                color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         },
                         modifier = Modifier.weight(1f),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = colorScheme.surfaceVariant,
-                            unfocusedContainerColor = colorScheme.surfaceVariant,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                             focusedTextColor = colorScheme.onSurface,
                             unfocusedTextColor = colorScheme.onSurface
                         ),
-                        shape = RoundedCornerShape(12.dp),
                         maxLines = 4,
                         enabled = !isGenerating && loadedModel != null
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     if (isGenerating) {
-                        IconButton(
+                        FilledIconButton(
                             onClick = { NativeLib.stopGenerationSafe() },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .background(StatusCritical, RoundedCornerShape(12.dp))
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(containerColor = colorScheme.error)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Stop,
                                 contentDescription = "Stop Generation",
-                                tint = Color.White,
+                                tint = colorScheme.onError,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     } else {
-                        IconButton(
+                        val canSend = (inputPrompt.isNotBlank() || attachedImageUri != null) && loadedModel != null
+                        FilledIconButton(
                             onClick = {
                                 val userText = inputPrompt.trim()
                                 val currentImage = attachedImageUri
@@ -448,60 +440,70 @@ fun ChatPlaygroundScreen(
                                         )
                                     )
 
-                                    val assistantIndex = messages.size
-                                    messages.add(
-                                        PlaygroundMessage(
-                                            sender = "assistant",
-                                            content = "",
-                                            isStreaming = true
-                                        )
+                                    val assistantMsg = PlaygroundMessage(
+                                        sender = "assistant",
+                                        content = "",
+                                        isStreaming = true
                                     )
-
+                                    messages.add(assistantMsg)
                                     isGenerating = true
 
                                     coroutineScope.launch {
                                         listState.animateScrollToItem(messages.size - 1)
-                                        val formattedPrompt = "<|im_start|>system\n$systemPrompt<|im_end|>\n<|im_start|>user\n${if (currentImage != null) "[Image Attached] " else ""}$userText<|im_end|>\n<|im_start|>assistant\n"
-                                        val stream = NativeLib.generateStream(formattedPrompt)
-                                        val fullResponse = StringBuilder()
+                                        var accumulated = ""
+                                        var lastTps = 0.0
+                                        var tokens = 0
 
-                                        stream.collect { chunk: GenerationChunk ->
-                                            if (chunk.token.isNotEmpty()) {
-                                                fullResponse.append(chunk.token)
-                                                messages[assistantIndex] = messages[assistantIndex].copy(
-                                                    content = fullResponse.toString(),
-                                                    tokenCount = fullResponse.length / 4
+                                        try {
+                                            NativeLib.generateSafeFlow(
+                                                prompt = userText.ifEmpty { "Describe this image." },
+                                                maxTokens = 512,
+                                                temperature = temperature,
+                                                topP = topP
+                                            ).collect { chunk: GenerationChunk ->
+                                                accumulated += chunk.token
+                                                lastTps = chunk.tokensPerSecond
+                                                tokens = chunk.tokenCount
+
+                                                val index = messages.indexOfFirst { it.id == assistantMsg.id }
+                                                if (index != -1) {
+                                                    messages[index] = assistantMsg.copy(
+                                                        content = accumulated,
+                                                        isStreaming = !chunk.isFinished,
+                                                        tps = lastTps,
+                                                        tokenCount = tokens
+                                                    )
+                                                }
+                                                listState.animateScrollToItem(messages.size - 1)
+                                            }
+                                        } catch (t: Throwable) {
+                                            val index = messages.indexOfFirst { it.id == assistantMsg.id }
+                                            if (index != -1) {
+                                                messages[index] = assistantMsg.copy(
+                                                    content = "Generation error: ${t.localizedMessage ?: "Unknown error"}",
+                                                    isStreaming = false
                                                 )
                                             }
-
-                                            if (chunk.isFinished) {
-                                                messages[assistantIndex] = messages[assistantIndex].copy(
-                                                    content = if (chunk.error != null)
-                                                        "⚠️ ${chunk.error}"
-                                                    else
-                                                        fullResponse.toString(),
-                                                    isStreaming = false,
-                                                    tps = chunk.tokensPerSecond,
-                                                    tokenCount = chunk.completionTokens
-                                                )
+                                        } finally {
+                                            isGenerating = false
+                                            val index = messages.indexOfFirst { it.id == assistantMsg.id }
+                                            if (index != -1) {
+                                                messages[index] = messages[index].copy(isStreaming = false)
                                             }
                                         }
-                                        isGenerating = false
                                     }
                                 }
                             },
-                            enabled = (inputPrompt.isNotBlank() || attachedImageUri != null) && loadedModel != null,
-                            modifier = Modifier
-                                .size(44.dp)
-                                .background(
-                                    if ((inputPrompt.isNotBlank() || attachedImageUri != null) && loadedModel != null) AccentBlue else colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                )
+                            enabled = canSend,
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = if (canSend) colorScheme.primary else colorScheme.surfaceVariant,
+                                contentColor = if (canSend) colorScheme.onPrimary else colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.Default.ArrowUpward,
                                 contentDescription = "Send Prompt",
-                                tint = if ((inputPrompt.isNotBlank() || attachedImageUri != null) && loadedModel != null) Color.White else colorScheme.onSurface.copy(alpha = 0.4f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -511,17 +513,20 @@ fun ChatPlaygroundScreen(
         }
     }
 
-    // Parameters Modal Dialog
+    // Parameters Modal Dialog (Material 3 Google Style)
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
+            icon = {
+                Icon(Icons.Default.Tune, contentDescription = null, tint = colorScheme.primary, modifier = Modifier.size(28.dp))
+            },
             title = {
-                Text("Inference Parameters", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Inference Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Column {
-                        Text("System Prompt", color = colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("System Prompt", style = MaterialTheme.typography.labelMedium, color = colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(4.dp))
                         TextField(
                             value = systemPrompt,
@@ -533,33 +538,33 @@ fun ChatPlaygroundScreen(
                                 focusedTextColor = colorScheme.onSurface,
                                 unfocusedTextColor = colorScheme.onSurface
                             ),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
 
                     Column {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Temperature", color = colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 12.sp)
-                            Text(String.format("%.2f", temperature), color = AccentBlue, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                            Text("Temperature", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
+                            Text(String.format("%.2f", temperature), style = MaterialTheme.typography.bodySmall, color = colorScheme.primary, fontFamily = FontFamily.Monospace)
                         }
                         Slider(
                             value = temperature,
                             onValueChange = { temperature = it },
                             valueRange = 0.0f..1.5f,
-                            colors = SliderDefaults.colors(thumbColor = AccentBlue, activeTrackColor = AccentBlue)
+                            colors = SliderDefaults.colors(thumbColor = colorScheme.primary, activeTrackColor = colorScheme.primary)
                         )
                     }
 
                     Column {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Top-P", color = colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 12.sp)
-                            Text(String.format("%.2f", topP), color = AccentBlue, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                            Text("Top-P", style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant)
+                            Text(String.format("%.2f", topP), style = MaterialTheme.typography.bodySmall, color = colorScheme.primary, fontFamily = FontFamily.Monospace)
                         }
                         Slider(
                             value = topP,
                             onValueChange = { topP = it },
                             valueRange = 0.1f..1.0f,
-                            colors = SliderDefaults.colors(thumbColor = AccentBlue, activeTrackColor = AccentBlue)
+                            colors = SliderDefaults.colors(thumbColor = colorScheme.primary, activeTrackColor = colorScheme.primary)
                         )
                     }
                 }
@@ -567,13 +572,13 @@ fun ChatPlaygroundScreen(
             confirmButton = {
                 Button(
                     onClick = { showSettingsDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Apply", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Apply", style = MaterialTheme.typography.labelLarge)
                 }
             },
             containerColor = colorScheme.surface,
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
@@ -605,19 +610,16 @@ fun PlaygroundBubble(
     ) {
         Surface(
             shape = RoundedCornerShape(
-                topStart = 14.dp,
-                topEnd = 14.dp,
-                bottomStart = if (isUser) 14.dp else 2.dp,
-                bottomEnd = if (isUser) 2.dp else 14.dp
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = if (isUser) 20.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 20.dp
             ),
-            color = if (isUser) colorScheme.surfaceVariant else colorScheme.surface,
-            border = if (!isUser) CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.3f)))
-            ) else null,
-            modifier = Modifier.widthIn(max = 340.dp)
+            color = if (isUser) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+            modifier = Modifier.widthIn(max = 330.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                // If user attached an image, render preview inside the bubble
+                // Image preview if user sent an image
                 message.imageUri?.let { uri ->
                     val bmp = remember(uri) {
                         try {
@@ -633,97 +635,93 @@ fun PlaygroundBubble(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
                 }
 
-                // Sender Label & Actions (Copy, TTS Speak) Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isUser) "You" else "PrivteLLM Engine",
-                        color = AccentBlue,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
+                // Header inside assistant bubble: model badge & action buttons
+                if (!isUser) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "PrivteLLM",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!isUser && message.content.isNotEmpty() && !message.isStreaming) {
-                            // TTS Speak Button
-                            Icon(
-                                imageVector = Icons.Default.VolumeUp,
-                                contentDescription = "Speak Text",
-                                tint = AccentBlue,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onSpeak(message.content) }
-                            )
+                        if (message.content.isNotEmpty() && !message.isStreaming) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.VolumeUp,
+                                    contentDescription = "Speak Text",
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { onSpeak(message.content) }
+                                )
 
-                            // Copy Button
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = colorScheme.onSurface.copy(alpha = 0.5f),
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onCopy() }
-                            )
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy",
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { onCopy() }
+                                )
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Message Text with Animated Cursor
+                // Message Text with cursor
                 Row {
                     Text(
-                        text = message.content.ifEmpty { if (message.isStreaming) "Inferring..." else "" },
-                        color = colorScheme.onSurface,
-                        fontSize = 14.sp,
-                        lineHeight = 21.sp
+                        text = message.content.ifEmpty { if (message.isStreaming) "Thinking..." else "" },
+                        color = if (isUser) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                        lineHeight = 22.sp
                     )
                     if (message.isStreaming) {
                         Box(
                             modifier = Modifier
-                                .width(6.dp)
-                                .height(16.dp)
-                                .offset(x = 2.dp, y = 2.dp)
-                                .background(AccentBlue.copy(alpha = cursorAlpha))
+                                .width(5.dp)
+                                .height(18.dp)
+                                .offset(x = 3.dp, y = 2.dp)
+                                .background(colorScheme.primary.copy(alpha = cursorAlpha))
                         )
                     }
                 }
 
-                // Telemetry Footer for Assistant Responses
+                // Telemetry Footer
                 if (!isUser && !message.isStreaming && message.tps > 0) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = colorScheme.surfaceVariant
+                        shape = RoundedCornerShape(8.dp),
+                        color = colorScheme.surface.copy(alpha = 0.6f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "⚡ ${String.format("%.1f", message.tps)} tok/s",
-                                color = AccentBlue,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
+                                text = "${String.format("%.1f", message.tps)} tok/s",
+                                color = colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "• ${message.tokenCount} tokens",
-                                color = colorScheme.onSurface.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace
+                                color = colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall
                             )
                         }
                     }

@@ -12,38 +12,60 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Dark Theme: Pure Black #000000 with #007ACC Accent
+// Google Material You Dark Color Scheme (Pixel / Gemini Clean Aesthetic)
 private val DarkColorScheme = darkColorScheme(
-    primary = AccentBlue,
-    secondary = AccentBlueLight,
-    tertiary = AccentBlueDark,
-    background = PureBlack,
-    surface = DarkSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    outline = DarkBorder,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
+    primary = GoogleBlueDark,
+    onPrimary = Color(0xFF041E49),
+    primaryContainer = GoogleBlueContainerDark,
+    onPrimaryContainer = GoogleOnBlueContainerDark,
+    secondary = Color(0xFF7FCFFF),
+    onSecondary = Color(0xFF00344F),
+    secondaryContainer = Color(0xFF004D74),
+    onSecondaryContainer = Color(0xFFC2E7FF),
+    tertiary = GoogleGreenDark,
+    onTertiary = Color(0xFF003915),
+    tertiaryContainer = GoogleGreenContainerDark,
+    onTertiaryContainer = Color(0xFFA6F5B4),
+    background = DarkBackground,
     onBackground = DarkTextPrimary,
+    surface = DarkSurface,
     onSurface = DarkTextPrimary,
-    error = StatusCritical
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = DarkBorder,
+    outlineVariant = DarkBorderSubtle,
+    error = GoogleRedDark,
+    onError = Color(0xFF601410),
+    errorContainer = GoogleRedContainerDark,
+    onErrorContainer = Color(0xFFF9DEDC)
 )
 
-// Light Theme: #CCCCCC Background with #007ACC Accent & #000000 Text
+// Google Material You Light Color Scheme (Google Workspace / Google Messages Clean Aesthetic)
 private val LightColorScheme = lightColorScheme(
-    primary = AccentBlue,
-    secondary = AccentBlueDark,
-    tertiary = AccentBlueLight,
-    background = SystemLightBg,
-    surface = LightSurface,
-    surfaceVariant = LightSurfaceVariant,
-    outline = LightBorder,
+    primary = GoogleBlue,
     onPrimary = Color.White,
+    primaryContainer = GoogleBlueContainerLight,
+    onPrimaryContainer = GoogleOnBlueContainerLight,
+    secondary = Color(0xFF00639B),
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFC2E7FF),
+    onSecondaryContainer = Color(0xFF001D32),
+    tertiary = GoogleGreen,
     onTertiary = Color.White,
+    tertiaryContainer = GoogleGreenContainerLight,
+    onTertiaryContainer = Color(0xFF07210C),
+    background = LightBackground,
     onBackground = LightTextPrimary,
+    surface = LightSurface,
     onSurface = LightTextPrimary,
-    error = StatusCritical
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightTextSecondary,
+    outline = LightBorder,
+    outlineVariant = LightBorderSubtle,
+    error = GoogleRed,
+    onError = Color.White,
+    errorContainer = GoogleRedContainerLight,
+    onErrorContainer = Color(0xFF410002)
 )
 
 @Composable

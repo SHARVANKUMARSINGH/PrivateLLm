@@ -3,6 +3,7 @@ package com.privtellm.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.sp
 import com.privtellm.core.profiler.MemoryPressure
 import com.privtellm.core.profiler.MemorySnapshot
 import com.privtellm.core.profiler.MemoryTier
-import com.privtellm.ui.theme.*
 
 @Composable
 fun RamMeter(
@@ -44,10 +43,10 @@ fun RamMeter(
         label = "RamProgress"
     )
 
-    val (statusColor, statusText, statusBg) = when (memorySnapshot.pressure) {
-        MemoryPressure.NORMAL -> Triple(AccentBlue, "STABLE", AccentBlueGlow)
-        MemoryPressure.MODERATE -> Triple(StatusWarning, "HIGH PRESSURE", StatusWarningGlow)
-        MemoryPressure.CRITICAL -> Triple(StatusCritical, "CRITICAL (<450MB)", StatusCriticalGlow)
+    val (statusColor, statusText, statusBg, statusOnBg) = when (memorySnapshot.pressure) {
+        MemoryPressure.NORMAL -> Quadruple(colorScheme.primary, "Stable", colorScheme.primaryContainer, colorScheme.onPrimaryContainer)
+        MemoryPressure.MODERATE -> Quadruple(colorScheme.tertiary, "High Pressure", colorScheme.tertiaryContainer, colorScheme.onTertiaryContainer)
+        MemoryPressure.CRITICAL -> Quadruple(colorScheme.error, "Critical (<450MB)", colorScheme.errorContainer, colorScheme.onErrorContainer)
     }
 
     val animatedStatusColor by animateColorAsState(
@@ -56,34 +55,16 @@ fun RamMeter(
         label = "StatusColor"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "RamPulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "CriticalPulse"
-    )
-
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = Brush.horizontalGradient(
-                listOf(
-                    animatedStatusColor.copy(alpha = if (memorySnapshot.pressure == MemoryPressure.CRITICAL) pulseAlpha else 0.5f),
-                    colorScheme.outline.copy(alpha = 0.6f)
-                )
-            )
-        )
+        border = BorderStroke(1.dp, colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
             // Header Row: Profiler Icon & Pressure Badge
             Row(
@@ -92,44 +73,41 @@ fun RamMeter(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(AccentBlueGlow),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = CircleShape,
+                        color = colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Memory,
-                            contentDescription = "RAM Profiler",
-                            tint = AccentBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Memory,
+                                contentDescription = "RAM Profiler",
+                                tint = colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "HARDWARE PROFILER",
+                            text = "Hardware Profiler",
+                            style = MaterialTheme.typography.titleMedium,
                             color = colorScheme.onSurface,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "RAM & Safety Guardrail Monitor",
-                            color = colorScheme.onSurface.copy(alpha = 0.65f),
-                            fontSize = 11.sp
+                            text = "RAM and OOM safety guardrail",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
                 // Dynamic Status Pill
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = statusBg,
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.linearGradient(listOf(animatedStatusColor, animatedStatusColor.copy(alpha = 0.4f)))
-                    )
+                    shape = RoundedCornerShape(16.dp),
+                    color = statusBg
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -139,35 +117,30 @@ fun RamMeter(
                             modifier = Modifier
                                 .size(7.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    animatedStatusColor.copy(
-                                        alpha = if (memorySnapshot.pressure == MemoryPressure.CRITICAL) pulseAlpha else 1f
-                                    )
-                                )
+                                .background(statusOnBg)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = statusText,
-                            color = animatedStatusColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            color = statusOnBg,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Gauge & Memory Numbers
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circular Semi-Arc Gauge
+                // Circular Semi-Arc Gauge (Google Pixel Battery Style)
                 Box(
                     modifier = Modifier
-                        .size(86.dp)
+                        .size(88.dp)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -181,9 +154,7 @@ fun RamMeter(
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )
                         drawArc(
-                            brush = Brush.sweepGradient(
-                                listOf(AccentBlueLight, animatedStatusColor)
-                            ),
+                            color = animatedStatusColor,
                             startAngle = 135f,
                             sweepAngle = 270f * animatedProgress,
                             useCenter = false,
@@ -195,83 +166,64 @@ fun RamMeter(
                         Text(
                             text = "${(usedRatio * 100).toInt()}%",
                             color = colorScheme.onSurface,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "USED",
-                            color = colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold
+                            color = colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(18.dp))
 
-                // Telemetry Metrics Grid
+                // Telemetry Metrics Grid (Clean Tonal Cells)
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            Text("Total RAM", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
-                            Text(
-                                text = "${String.format("%.1f", memorySnapshot.totalRamGb)} GB",
-                                color = colorScheme.onSurface,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("Free RAM", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
-                            Text(
-                                text = "${memorySnapshot.availableRamMb} MB",
-                                color = animatedStatusColor,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        MemoryStatCell(
+                            label = "Total RAM",
+                            value = "${String.format("%.1f", memorySnapshot.totalRamGb)} GB",
+                            valueColor = colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MemoryStatCell(
+                            label = "Free RAM",
+                            value = "${memorySnapshot.availableRamMb} MB",
+                            valueColor = animatedStatusColor,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            Text("Resident (Used)", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
-                            Text(
-                                text = "${memorySnapshot.usedRamMb} MB",
-                                color = colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("Safety Limit", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
-                            Text(
-                                text = "450 MB",
-                                color = StatusCritical,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        MemoryStatCell(
+                            label = "Resident (Used)",
+                            value = "${memorySnapshot.usedRamMb} MB",
+                            valueColor = colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MemoryStatCell(
+                            label = "Safety Limit",
+                            value = "450 MB",
+                            valueColor = colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Linear Progress Bar with 450 MB Threshold Marker
+            // Linear Progress Bar with Safety Threshold
             Column {
                 Box(
                     modifier = Modifier
@@ -285,44 +237,42 @@ fun RamMeter(
                             .fillMaxHeight()
                             .fillMaxWidth(animatedProgress)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(AccentBlueLight, animatedStatusColor)
-                                )
-                            )
-                    )
-
-                    // 450 MB Safety Guardrail line marker
-                    val safetyRatio = (1f - (450f / memorySnapshot.totalRamMb.coerceAtLeast(1024L))).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(2.dp)
-                            .align(Alignment.CenterStart)
-                            .offset(x = (safetyRatio * 280).dp)
-                            .background(StatusCritical)
+                            .background(animatedStatusColor)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("0 MB", color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                    Text("▲ 450MB Safety Guardrail", color = StatusCritical, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("${memorySnapshot.totalRamMb} MB", color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "0 MB",
+                        color = colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = "Threshold: 450 MB OOM Guardrail",
+                        color = colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${memorySnapshot.totalRamMb} MB",
+                        color = colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Hardware Recommendation Tier Banner
+            // Hardware Recommendation Tier Banner (Google Settings Card)
             val (tierTitle, tierDesc) = when (memorySnapshot.tier) {
                 MemoryTier.TIER_SUB_4GB -> Pair(
                     "Compact Tier (< 4GB RAM)",
-                    "Best for ≤1B models (Qwen-0.5B, SmolLM). Lightweight."
+                    "Recommended for ≤1B models (Qwen-0.5B, SmolLM). Ultra-low memory footprint."
                 )
                 MemoryTier.TIER_4GB_TO_6GB -> Pair(
                     "Balanced Tier (4 – 6GB RAM)",
@@ -340,44 +290,43 @@ fun RamMeter(
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f)))
-                )
+                shape = RoundedCornerShape(14.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, colorScheme.outlineVariant)
             ) {
                 Row(
-                    modifier = Modifier.padding(10.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(AccentBlueGlow),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = CircleShape,
+                        color = colorScheme.secondaryContainer,
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = AccentBlue,
-                            modifier = Modifier.size(14.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
                         Text(
                             text = tierTitle,
-                            color = AccentBlue,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = tierDesc,
-                            color = colorScheme.onSurface.copy(alpha = 0.75f),
-                            fontSize = 10.sp
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -386,30 +335,30 @@ fun RamMeter(
             // Warning banner if free RAM is under threshold
             AnimatedVisibility(visible = memorySnapshot.pressure != MemoryPressure.NORMAL) {
                 Column {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = animatedStatusColor.copy(alpha = 0.12f)
+                        shape = RoundedCornerShape(12.dp),
+                        color = colorScheme.errorContainer
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.WarningAmber,
                                 contentDescription = null,
-                                tint = animatedStatusColor,
-                                modifier = Modifier.size(16.dp)
+                                tint = colorScheme.onErrorContainer,
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (memorySnapshot.pressure == MemoryPressure.CRITICAL)
                                     "Safety Guardrail: Free RAM < 450 MB! Native inference will abort to prevent OOM crash."
                                 else
                                     "Memory pressure detected. Active dynamic KV-cache pruning is engaged.",
-                                color = animatedStatusColor,
-                                fontSize = 10.sp,
+                                color = colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -419,3 +368,36 @@ fun RamMeter(
         }
     }
 }
+
+@Composable
+private fun MemoryStatCell(
+    label: String,
+    value: String,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Text(
+                text = label,
+                color = colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = value,
+                color = valueColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

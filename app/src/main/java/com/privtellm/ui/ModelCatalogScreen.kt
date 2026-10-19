@@ -1,7 +1,11 @@
 package com.privtellm.ui
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,33 +21,27 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privtellm.core.profiler.DeviceProfiler
 import com.privtellm.hub.DownloadStatus
-import com.privtellm.hub.ModelDownloader
-import com.privtellm.hub.ModelItem
-import com.privtellm.ui.theme.*
-
-import android.net.Uri
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import com.privtellm.hub.ModelCapability
 import com.privtellm.hub.ModelCatalog
+import com.privtellm.hub.ModelDownloader
+import com.privtellm.hub.ModelItem
 import kotlinx.coroutines.launch
 
 enum class ModelCategory(val label: String) {
-    ALL("All Models"),
-    RECOMMENDED("★ Recommended"),
+    ALL("All"),
+    RECOMMENDED("Recommended"),
     COMPACT("≤1B Compact"),
-    BALANCED("1B–3B Balanced"),
-    VISION("👁️ Vision"),
-    STUDIO("🎨 Audio & Gen"),
+    BALANCED("1B–3B"),
+    VISION("Vision"),
+    STUDIO("Audio & Gen"),
     FLAGSHIP("7B+ Heavy")
 }
 
@@ -89,7 +87,6 @@ fun ModelCatalogScreen(
         }
     }
 
-    // Filter models
     val filteredModels = remember(models, searchQuery, selectedCategory, memorySnapshot) {
         models.filter { model ->
             val matchesSearch = searchQuery.isBlank() ||
@@ -115,24 +112,32 @@ fun ModelCatalogScreen(
     if (isImporting) {
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Importing Custom GGUF Model", fontWeight = FontWeight.Bold) },
+            icon = {
+                Icon(Icons.Default.FileUpload, contentDescription = null, tint = colorScheme.primary, modifier = Modifier.size(28.dp))
+            },
+            title = {
+                Text("Importing Custom GGUF Model", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(36.dp))
+                    CircularProgressIndicator(color = colorScheme.primary, modifier = Modifier.size(36.dp))
                     Spacer(modifier = Modifier.height(14.dp))
-                    Text("Copying model weights into app storage...", fontSize = 13.sp)
+                    Text("Copying model weights into app storage...", style = MaterialTheme.typography.bodyMedium)
                     if (importProgress > 0f) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         LinearProgressIndicator(
                             progress = { importProgress },
-                            color = AccentBlue,
+                            color = colorScheme.primary,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Text("${(importProgress * 100).toInt()}%", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("${(importProgress * 100).toInt()}%", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             },
-            confirmButton = {}
+            confirmButton = {},
+            containerColor = colorScheme.surface,
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
@@ -144,7 +149,7 @@ fun ModelCatalogScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 28.dp)
     ) {
-        // Hub Banner & Search
+        // Hub Header & Import Button
         item {
             Column {
                 Row(
@@ -152,108 +157,108 @@ fun ModelCatalogScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "QUANTIZED MODEL STORE",
-                            color = AccentBlue,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "Local GGUF Models (0.5B – 20B)",
+                            text = "Model Store",
+                            style = MaterialTheme.typography.headlineMedium,
                             color = colorScheme.onBackground,
-                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Curated local GGUF weights (0.5B – 14B)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
 
                     // Import Custom .GGUF Button
-                    Button(
+                    FilledTonalButton(
                         onClick = { customGgufPicker.launch("*/*") },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Import .GGUF", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Import", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Search Bar
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            "Search model by name or quant (Q4_K_M)...",
-                            color = colorScheme.onSurface.copy(alpha = 0.45f),
-                            fontSize = 13.sp
-                        )
-                    },
-                    leadingIcon = {
+                // Search Bar (Google Play Store Style)
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = AccentBlue,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
-                    },
-                    trailingIcon = {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    text = "Search model by name or quant...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = colorScheme.onSurface,
+                                unfocusedTextColor = colorScheme.onSurface
+                            ),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     Icons.Default.Clear,
                                     contentDescription = "Clear",
-                                    tint = colorScheme.onSurface.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp)),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colorScheme.surface,
-                        unfocusedContainerColor = colorScheme.surface,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = colorScheme.onSurface,
-                        unfocusedTextColor = colorScheme.onSurface
-                    ),
-                    singleLine = true
-                )
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Filter Category Chips
+                // Filter Category Chips (Google Material 3 Pill Chips)
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(ModelCategory.values()) { category ->
                         val isSelected = (selectedCategory == category)
                         Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = if (isSelected) AccentBlue else colorScheme.surface,
-                            border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.horizontalGradient(
-                                    if (isSelected) listOf(AccentBlue, AccentBlue)
-                                    else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
-                                )
-                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) colorScheme.secondaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            border = if (!isSelected) BorderStroke(1.dp, colorScheme.outlineVariant) else null,
                             modifier = Modifier.clickable { selectedCategory = category }
                         ) {
                             Text(
                                 text = category.label,
-                                color = if (isSelected) Color.White else colorScheme.onSurface.copy(alpha = 0.75f),
-                                fontSize = 11.sp,
+                                color = if (isSelected) colorScheme.onSecondaryContainer else colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
                         }
                     }
@@ -268,43 +273,53 @@ fun ModelCatalogScreen(
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = AccentBlueGlow,
-                        border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.horizontalGradient(listOf(AccentBlue, AccentBlue.copy(alpha = 0.4f)))
-                        )
+                        shape = RoundedCornerShape(16.dp),
+                        color = colorScheme.primaryContainer
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(AccentBlue)
+                                        .background(colorScheme.onPrimaryContainer)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text("ACTIVE ENGINE IN RAM", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text(activeModel.name, color = colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = "Active in RAM",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = activeModel.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
 
-                            OutlinedButton(
+                            FilledTonalButton(
                                 onClick = onUnloadModel,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
-                                ),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Unload", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Unload", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -353,33 +368,23 @@ fun ModelCardItem(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val borderColor = when {
-        isLoaded -> AccentBlue
-        isRecommended -> AccentBlue
-        else -> colorScheme.outline.copy(alpha = 0.45f)
-    }
-
     val estimatedRamMb = (model.sizeBytes / (1024 * 1024)) + 400L
-    val (ramCheckColor, ramCheckLabel) = when {
-        estimatedRamMb <= freeRamMb - 300 -> Pair(AccentBlue, "SAFE FIT")
-        estimatedRamMb <= freeRamMb -> Pair(StatusWarning, "TIGHT FIT")
-        else -> Pair(StatusCritical, "HIGH OOM RISK")
+    val (ramCheckColor, ramCheckBg, ramCheckLabel) = when {
+        estimatedRamMb <= freeRamMb - 300 -> Triple(colorScheme.tertiary, colorScheme.tertiaryContainer, "Safe Fit")
+        estimatedRamMb <= freeRamMb -> Triple(colorScheme.primary, colorScheme.primaryContainer, "Tight Fit")
+        else -> Triple(colorScheme.error, colorScheme.errorContainer, "OOM Risk")
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = Brush.horizontalGradient(
-                listOf(borderColor.copy(alpha = if (isLoaded) 0.9f else 0.5f), colorScheme.outline.copy(alpha = 0.3f))
-            )
-        )
+        border = BorderStroke(1.dp, if (isLoaded) colorScheme.primary else colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(18.dp)
         ) {
             // Header Row: Model Title & Status Badge
             Row(
@@ -387,90 +392,104 @@ fun ModelCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = model.name,
-                        color = colorScheme.onSurface,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${model.parametersBillion}B params • ${model.quantization} • ${model.sizeFormatted}",
-                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isLoaded) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = when (model.capability) {
+                                    ModelCapability.VISION_MULTIMODAL -> Icons.Default.Visibility
+                                    ModelCapability.TEXT_TO_SPEECH -> Icons.Default.VolumeUp
+                                    ModelCapability.IMAGE_GENERATION -> Icons.Default.Palette
+                                    else -> Icons.Default.SmartToy
+                                },
+                                contentDescription = null,
+                                tint = if (isLoaded) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = model.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${model.parametersBillion}B params • ${model.quantization} • ${model.sizeFormatted}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 if (isLoaded) {
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = AccentBlueGlow,
-                        border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.linearGradient(listOf(AccentBlue, AccentBlue))
-                        )
+                        shape = RoundedCornerShape(12.dp),
+                        color = colorScheme.primaryContainer
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(AccentBlue)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "ACTIVE",
-                                color = AccentBlue,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        Text(
+                            text = "ACTIVE",
+                            color = colorScheme.onPrimaryContainer,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
 
-            // DYNAMIC RECOMMENDATION BADGE (Requirement 2)
+            // DYNAMIC RECOMMENDATION BADGE (Clean Google Green Tonal Banner)
             if (isRecommended) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = AccentBlueGlow,
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(AccentBlue, AccentBlue.copy(alpha = 0.4f)))
-                    )
+                    shape = RoundedCornerShape(10.dp),
+                    color = colorScheme.tertiaryContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "★ [RECOMMENDED FOR YOUR DEVICE]",
-                            color = AccentBlue,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 0.5.sp
+                            text = "Recommended for your device",
+                            color = colorScheme.onTertiaryContainer,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Description / Recommendation Details
             Text(
                 text = if (isRecommended) recommendationDetails else model.description,
-                color = if (isRecommended) colorScheme.onSurface else colorScheme.onSurface.copy(alpha = 0.75f),
-                fontSize = 12.sp,
-                lineHeight = 17.sp
+                style = MaterialTheme.typography.bodyMedium,
+                color = colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Specs & RAM Safety Pill
             Row(
@@ -480,73 +499,67 @@ fun ModelCardItem(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(6.dp),
                         color = colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = "${model.contextLength} ctx",
-                            color = colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(6.dp),
                         color = colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = model.quantization,
-                            color = colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = ramCheckColor.copy(alpha = 0.12f)
+                    shape = RoundedCornerShape(8.dp),
+                    color = ramCheckBg
                 ) {
                     Text(
                         text = "● $ramCheckLabel (~${estimatedRamMb}MB)",
                         color = ramCheckColor,
-                        fontSize = 10.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
 
-            // Error Banner if download or loading failed
+            // Error Banner
             if (model.status == DownloadStatus.ERROR && model.lastError != null) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = StatusCriticalGlow,
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(StatusCritical, StatusCritical.copy(alpha = 0.5f)))
-                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    color = colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = null,
-                            tint = StatusCritical,
+                            tint = colorScheme.onErrorContainer,
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = model.lastError ?: "Download failed. Tap to retry.",
-                            color = colorScheme.onSurface,
-                            fontSize = 11.sp,
+                            color = colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
                             maxLines = 2
                         )
                     }
@@ -564,19 +577,18 @@ fun ModelCardItem(
                         val downloadedMb = String.format("%.1f MB", model.downloadedBytes / (1024.0 * 1024.0))
                         Text(
                             text = if (model.status == DownloadStatus.DOWNLOADING)
-                                "Downloading ${String.format("%.1f", model.downloadProgress * 100)}% ($downloadedMb / ${model.sizeFormatted})"
+                                "Downloading ${(model.downloadProgress * 100).toInt()}% ($downloadedMb / ${model.sizeFormatted})"
                             else "Paused ($downloadedMb / ${model.sizeFormatted})",
-                            color = AccentBlue,
-                            fontSize = 11.sp,
+                            color = colorScheme.primary,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = if (model.downloadSpeedMb > 0)
                                 "${String.format("%.1f", model.downloadSpeedMb)} MB/s"
                             else "-- MB/s",
-                            color = colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -589,7 +601,7 @@ fun ModelCardItem(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = AccentBlue,
+                        color = colorScheme.primary,
                         trackColor = colorScheme.surfaceVariant
                     )
                 }
@@ -598,15 +610,15 @@ fun ModelCardItem(
             if (model.status == DownloadStatus.VERIFYING) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AccentBlue)
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verifying SHA-256 integrity hash...", color = AccentBlue, fontSize = 11.sp)
+                    Text("Verifying SHA-256 hash...", color = colorScheme.primary, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Action Buttons Row with Modern Material 3 Styling
+            // Action Buttons Row (Google Material 3 Filled & Tonal Buttons)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -616,49 +628,37 @@ fun ModelCardItem(
                     DownloadStatus.NOT_DOWNLOADED -> {
                         Button(
                             onClick = onDownload,
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(20.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Download GGUF", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Download", style = MaterialTheme.typography.labelLarge)
                         }
                     }
 
                     DownloadStatus.ERROR -> {
                         Button(
                             onClick = onDownload,
-                            colors = ButtonDefaults.buttonColors(containerColor = StatusWarning),
-                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.error),
+                            shape = RoundedCornerShape(20.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Retry Download", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Retry", style = MaterialTheme.typography.labelLarge)
                         }
                     }
 
                     DownloadStatus.DOWNLOADING -> {
                         OutlinedButton(
                             onClick = onPause,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Pause", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Pause", style = MaterialTheme.typography.labelLarge)
                         }
                     }
 
@@ -671,19 +671,18 @@ fun ModelCardItem(
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = "Delete Part",
-                                    tint = colorScheme.onSurface.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(18.dp)
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                             Button(
                                 onClick = onDownload,
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Resume", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Resume", style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }
@@ -698,8 +697,8 @@ fun ModelCardItem(
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
                                 contentDescription = "Delete Model",
-                                tint = colorScheme.onSurface.copy(alpha = 0.5f),
-                                modifier = Modifier.size(18.dp)
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -709,57 +708,43 @@ fun ModelCardItem(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = onChatNow,
-                                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                                    shape = RoundedCornerShape(20.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Chat,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text("Chat Now", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Chat Now", style = MaterialTheme.typography.labelLarge)
                                 }
 
                                 OutlinedButton(
                                     onClick = onUnload,
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
-                                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                                        brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.error),
+                                    border = BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.5f)),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
-                                    Text("Unload", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Unload", style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         } else {
                             Button(
                                 onClick = onLoad,
                                 enabled = !model.isLoading,
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                             ) {
                                 if (model.isLoading) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(15.dp),
-                                        color = Color.White,
+                                        modifier = Modifier.size(16.dp),
+                                        color = colorScheme.onPrimary,
                                         strokeWidth = 2.dp
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Loading RAM...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Loading...", style = MaterialTheme.typography.labelLarge)
                                 } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Bolt,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = Color.White
-                                    )
+                                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Load Engine", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Load into RAM", style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }

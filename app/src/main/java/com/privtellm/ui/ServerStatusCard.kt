@@ -8,6 +8,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,11 +21,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privtellm.hub.DownloadStatus
@@ -56,16 +57,14 @@ fun ServerStatusCard(
     var showCopiedWeb by remember { mutableStateOf(false) }
     var showRemoteDialog by remember { mutableStateOf(false) }
     var showModelSelectDialog by remember { mutableStateOf(false) }
-    var testResult by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Pulse animation for active server & inference indicator
     val infiniteTransition = rememberInfiniteTransition(label = "ServerRadar")
     val radarPulse by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
+        initialValue = 0.4f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(650, easing = FastOutSlowInEasing),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "RadarAlpha"
@@ -73,23 +72,14 @@ fun ServerStatusCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder().copy(
-            brush = Brush.horizontalGradient(
-                if (isRunning)
-                    listOf(AccentBlue.copy(alpha = 0.8f), colorScheme.outline.copy(alpha = 0.5f))
-                else if (isStarting)
-                    listOf(AccentCyan.copy(alpha = 0.8f), colorScheme.outline.copy(alpha = 0.5f))
-                else
-                    listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f))
-            )
-        )
+        border = BorderStroke(1.dp, colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
             // Header Row: Console Title & Power Switch
             Row(
@@ -97,67 +87,70 @@ fun ServerStatusCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isRunning) AccentBlueGlow else colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isRunning) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Dns,
-                            contentDescription = "OpenAI API Server",
-                            tint = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Dns,
+                                contentDescription = "OpenAI Server",
+                                tint = if (isRunning) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "LOCAL OPENAI SERVER",
+                                text = "OpenAI API Server",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
+                                fontWeight = FontWeight.Bold
                             )
                             if (isRunning) {
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
-                                        .size(7.dp)
+                                        .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(AccentBlue.copy(alpha = radarPulse))
+                                        .background(colorScheme.primary.copy(alpha = radarPulse))
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = when {
-                                isStarting -> "Initializing HTTP Engine..."
-                                isRunning -> "Listening on http://0.0.0.0:${serverState.port}"
-                                serverState.status == ServerStatus.ERROR -> "Server Error"
-                                else -> "Service Offline"
+                                isStarting -> "Starting HTTP engine..."
+                                isRunning -> "Online on port ${serverState.port}"
+                                serverState.status == ServerStatus.ERROR -> "Server error occurred"
+                                else -> "Service offline"
                             },
+                            style = MaterialTheme.typography.bodySmall,
                             color = when {
-                                isStarting -> AccentCyan
-                                isRunning -> AccentBlue
-                                serverState.status == ServerStatus.ERROR -> StatusCritical
-                                else -> colorScheme.onSurface.copy(alpha = 0.5f)
-                            },
-                            fontSize = 11.sp
+                                isStarting -> colorScheme.primary
+                                isRunning -> colorScheme.primary
+                                serverState.status == ServerStatus.ERROR -> colorScheme.error
+                                else -> colorScheme.onSurfaceVariant
+                            }
                         )
                     }
                 }
 
-                // Switch with loading state
+                // Switch
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isStarting) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = AccentCyan,
+                            modifier = Modifier.size(20.dp),
+                            color = colorScheme.primary,
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -168,9 +161,9 @@ fun ServerStatusCard(
                         onCheckedChange = { if (!isStarting) onToggleServer(it) },
                         enabled = !isStarting,
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = AccentBlue,
-                            uncheckedThumbColor = colorScheme.onSurface.copy(alpha = 0.4f),
+                            checkedThumbColor = colorScheme.onPrimary,
+                            checkedTrackColor = colorScheme.primary,
+                            uncheckedThumbColor = colorScheme.outline,
                             uncheckedTrackColor = colorScheme.surfaceVariant
                         )
                     )
@@ -179,37 +172,33 @@ fun ServerStatusCard(
 
             // Error Alert Banner
             if (serverState.lastError != null) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = StatusCriticalGlow,
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(StatusCritical, StatusCritical.copy(alpha = 0.4f)))
-                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    color = colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(10.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.WarningAmber,
                             contentDescription = "Error",
-                            tint = StatusCritical,
-                            modifier = Modifier.size(16.dp)
+                            tint = colorScheme.onErrorContainer,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = serverState.lastError ?: "",
-                            color = StatusCritical,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
+                            color = colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // LAN Endpoint Display Box
             Surface(
@@ -224,66 +213,67 @@ fun ServerStatusCard(
                             showCopied = false
                         }
                     },
-                shape = RoundedCornerShape(10.dp),
-                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(
-                        if (isRunning) listOf(AccentBlue.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f))
-                        else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
-                    )
-                )
+                shape = RoundedCornerShape(14.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (isRunning) "LAN Accessible Endpoint" else "Server Inactive",
-                            color = colorScheme.onSurface.copy(alpha = 0.55f),
-                            fontSize = 10.sp
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = "http://${serverState.localIp}:${serverState.port}",
-                            color = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.45f),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            color = if (isRunning) colorScheme.primary else colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (showCopied) StatusSuccessGlow else colorScheme.surface
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    FilledTonalButton(
+                        onClick = {
+                            val endpoint = "http://${serverState.localIp}:${serverState.port}"
+                            copyToClipboard(context, "API Endpoint", endpoint)
+                            showCopied = true
+                            coroutineScope.launch {
+                                delay(2000)
+                                showCopied = false
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (showCopied) Icons.Default.Check else Icons.Default.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = if (showCopied) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (showCopied) "COPIED" else "COPY",
-                                color = if (showCopied) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        Icon(
+                            imageVector = if (showCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (showCopied) "Copied" else "Copy",
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                 }
             }
 
             // API Authentication Key Card
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -295,116 +285,121 @@ fun ServerStatusCard(
                             showCopiedKey = false
                         }
                     },
-                shape = RoundedCornerShape(10.dp),
-                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(listOf(AccentCyan.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f)))
-                )
+                shape = RoundedCornerShape(14.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "API Key (Bearer Auth Required for Web/Remote)",
-                            color = colorScheme.onSurface.copy(alpha = 0.55f),
-                            fontSize = 10.sp
+                            text = "OpenAI Bearer API Key",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = serverState.apiKey,
-                            color = AccentCyan,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            color = colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = {
                                 val newKey = "sk-privtellm-${UUID.randomUUID().toString().replace("-", "")}"
                                 LocalAiServerService.setApiKey(newKey)
-                                Toast.makeText(context, "New OpenAI API Key generated", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "New API Key generated", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Regenerate Key",
-                                tint = colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.size(15.dp)
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (showCopiedKey) StatusSuccessGlow else colorScheme.surface
+                        FilledTonalButton(
+                            onClick = {
+                                copyToClipboard(context, "API Key", serverState.apiKey)
+                                showCopiedKey = true
+                                coroutineScope.launch {
+                                    delay(2000)
+                                    showCopiedKey = false
+                                }
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = if (showCopiedKey) Icons.Default.Check else Icons.Default.Key,
-                                    contentDescription = "Copy Key",
-                                    tint = if (showCopiedKey) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (showCopiedKey) "COPIED" else "COPY",
-                                    color = if (showCopiedKey) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
+                            Icon(
+                                imageVector = if (showCopiedKey) Icons.Default.Check else Icons.Default.Key,
+                                contentDescription = "Copy Key",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (showCopiedKey) "Copied" else "Copy",
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
                     }
                 }
             }
 
             // Web Chat Client URL Pill
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = AccentBlueGlow.copy(alpha = 0.4f),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.6f), AccentCyan.copy(alpha = 0.4f)))
-                )
+                shape = RoundedCornerShape(14.dp),
+                color = colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                border = BorderStroke(1.dp, colorScheme.secondaryContainer)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Web Chat Client (Open from any browser)",
-                            color = AccentCyan,
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "http://${serverState.localIp}:${serverState.port}/",
                             color = colorScheme.onSurface,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.Monospace
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Row {
-                        OutlinedButton(
+                        FilledTonalButton(
                             onClick = {
                                 val url = "http://${serverState.localIp}:${serverState.port}/"
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -414,13 +409,13 @@ fun ServerStatusCard(
                                     copyToClipboard(context, "Web Client URL", url)
                                 }
                             },
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
                         ) {
-                            Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Open", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("Open", style = MaterialTheme.typography.labelSmall)
                         }
 
                         Spacer(modifier = Modifier.width(6.dp))
@@ -435,148 +430,139 @@ fun ServerStatusCard(
                                     showCopiedWeb = false
                                 }
                             },
-                            modifier = Modifier.size(30.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = if (showCopiedWeb) Icons.Default.Check else Icons.Default.ContentCopy,
                                 contentDescription = "Copy Link",
-                                tint = if (showCopiedWeb) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.7f),
-                                modifier = Modifier.size(14.dp)
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                 }
             }
 
-            // Served Model Status Bar
-            Spacer(modifier = Modifier.height(8.dp))
+            // Served Model Status Bar (Clean Vertical Stack to eliminate text collisions)
+            Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                color = if (serverState.activeModel != null) AccentBlueGlow.copy(alpha = 0.6f) else colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                shape = RoundedCornerShape(14.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Psychology,
-                            contentDescription = "Active Model",
-                            tint = if (serverState.activeModel != null) AccentCyan else colorScheme.onSurface.copy(alpha = 0.4f),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "SERVED MODEL: ",
-                            color = colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Text(
-                            text = serverState.activeModel?.name ?: "None Loaded (Chat returns 503)",
-                            color = if (serverState.activeModel != null) AccentCyan else StatusWarning,
-                            fontSize = 10.sp,
+                            text = "ACTIVE SERVING MODEL",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold
                         )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = serverState.activeModel?.name ?: "None Loaded (Chat returns 503)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (serverState.activeModel != null) colorScheme.primary else colorScheme.error,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         if (serverState.activeModel != null) {
                             Text(
-                                text = serverState.activeModel.quantization,
-                                color = colorScheme.onSurface.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace
+                                text = "${serverState.activeModel.quantization} • ${serverState.activeModel.parametersBillion}B params",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
                         }
+                    }
 
-                        TextButton(
-                            onClick = { showModelSelectDialog = true },
-                            modifier = Modifier.height(26.dp),
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                        ) {
-                            Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(13.dp), tint = AccentCyan)
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("SELECT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentCyan)
-                        }
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    FilledTonalButton(
+                        onClick = { showModelSelectDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Switch", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Real-time Telemetry Metrics
+            // Real-time Telemetry Metrics Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ServerMetricTile(
-                    label = "TOTAL CALLS",
+                    label = "Total Requests",
                     value = "${serverState.totalRequests}",
-                    accentColor = AccentBlue
+                    modifier = Modifier.weight(1f)
                 )
 
                 ServerMetricTile(
-                    label = "TOKENS STREAMED",
+                    label = "Tokens Streamed",
                     value = "${serverState.totalTokens}",
-                    accentColor = AccentBlueLight
+                    modifier = Modifier.weight(1f)
                 )
 
-                // Engine State Pill
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "ENGINE STATE",
-                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (serverState.isInferring) StatusCriticalGlow else colorScheme.surfaceVariant
+                // Engine State Tile
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Text(
+                            text = "Engine State",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
+                                    .size(7.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (serverState.isInferring) StatusCritical
-                                        else if (isRunning) AccentBlue
-                                        else colorScheme.onSurface.copy(alpha = 0.4f)
+                                        if (serverState.isInferring) colorScheme.primary
+                                        else if (isRunning) colorScheme.tertiary
+                                        else colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     )
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = if (serverState.isInferring) "STREAMING" else if (isRunning) "IDLE" else "STOPPED",
-                                color = if (serverState.isInferring) StatusCritical else if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.45f),
-                                fontSize = 10.sp,
+                                text = if (serverState.isInferring) "Streaming" else if (isRunning) "Idle" else "Stopped",
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                                color = if (serverState.isInferring) colorScheme.primary else if (isRunning) colorScheme.tertiary else colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
             }
 
-            // Quick Actions & cURL Copier
+            // Quick Actions & Remote Access
             AnimatedVisibility(visible = isRunning) {
                 Column {
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedButton(
                             onClick = {
@@ -589,78 +575,62 @@ fun ServerStatusCard(
                                 copyToClipboard(context, "OpenAI cURL Command", curl)
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = AccentBlue
-                            ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.6f), AccentBlue.copy(alpha = 0.3f)))
-                            ),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Terminal, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Terminal, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copy cURL", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Copy cURL", style = MaterialTheme.typography.labelLarge)
                         }
 
                         Button(
                             onClick = { showRemoteDialog = true },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentCyan,
-                                contentColor = Color.Black
-                            ),
-                            contentPadding = PaddingValues(vertical = 8.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                            contentPadding = PaddingValues(vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Remote Access", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Remote Access", style = MaterialTheme.typography.labelLarge)
                         }
-                    }
-
-                    testResult?.let { msg ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = msg,
-                            color = AccentBlue,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
                     }
                 }
             }
         }
     }
 
-    // Remote Worldwide Web Access Dialog
+    // Remote Worldwide Web Access Dialog (Material 3 Google Style)
     if (showRemoteDialog) {
         AlertDialog(
             onDismissRequest = { showRemoteDialog = false },
+            icon = {
+                Icon(Icons.Default.Public, contentDescription = null, tint = colorScheme.primary, modifier = Modifier.size(28.dp))
+            },
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Public, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Access from Anywhere in the World", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+                Text(
+                    text = "Worldwide Remote Access",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Because your Android phone is behind a home Wi-Fi router or mobile carrier NAT, public internet users from other countries cannot reach your phone IP directly without a tunnel.",
-                        fontSize = 12.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        text = "Because your Android phone is behind home Wi-Fi or carrier NAT, remote users need a secure tunnel to connect:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
                     )
 
                     Text(
-                        text = "1. Cloudflare Quick Tunnel (Free, No account needed):",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = AccentCyan
+                        text = "Cloudflare Quick Tunnel (Free, instant):",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = colorScheme.surfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -671,7 +641,7 @@ fun ServerStatusCard(
                     ) {
                         Text(
                             text = "cloudflared tunnel --url http://${serverState.localIp}:${serverState.port}\n(Click to copy command)",
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface,
                             modifier = Modifier.padding(10.dp)
@@ -679,52 +649,26 @@ fun ServerStatusCard(
                     }
 
                     Text(
-                        text = "2. Or with Localtunnel (Requires Node.js):",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = AccentCyan
-                    )
-
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val cmd = "npx localtunnel --port ${serverState.port}"
-                                copyToClipboard(context, "Localtunnel Command", cmd)
-                            }
-                    ) {
-                        Text(
-                            text = "npx localtunnel --port ${serverState.port}\n(Click to copy command)",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = colorScheme.onSurface,
-                            modifier = Modifier.padding(10.dp)
-                        )
-                    }
-
-                    Text(
-                        text = "3. Share the generated public https:// link and your API Key (${serverState.apiKey}) with anyone! They can chat from any browser worldwide.",
-                        fontSize = 11.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.75f)
+                        text = "Share the generated public https:// link and your API Key (${serverState.apiKey}) with anyone! They can chat from any browser worldwide.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showRemoteDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text("Got It", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Got It", style = MaterialTheme.typography.labelLarge)
                 }
             },
             containerColor = colorScheme.surface,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
-    // Model Selection Modal Dialog
+    // Model Selection Modal Dialog (Material 3 Google Style)
     if (showModelSelectDialog) {
         val modelDir = ModelCatalog.getInternalModelDir(context)
         val installedFiles: List<java.io.File> = remember {
@@ -733,12 +677,11 @@ fun ServerStatusCard(
 
         AlertDialog(
             onDismissRequest = { showModelSelectDialog = false },
+            icon = {
+                Icon(Icons.Default.Dns, contentDescription = null, tint = colorScheme.primary, modifier = Modifier.size(28.dp))
+            },
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Dns, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Model for Server", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
+                Text("Select Model for Server", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(
@@ -749,21 +692,21 @@ fun ServerStatusCard(
                 ) {
                     Text(
                         text = "Choose which local model the OpenAI server should route API completions to:",
-                        color = colorScheme.onSurface.copy(alpha = 0.7f),
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
                     )
 
                     if (installedFiles.isEmpty()) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = colorScheme.surfaceVariant,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "No .gguf models found in storage. Go to the Models tab to download or import a GGUF model.",
-                                color = colorScheme.onSurface.copy(alpha = 0.65f),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(12.dp)
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(14.dp)
                             )
                         }
                     } else {
@@ -807,12 +750,9 @@ fun ServerStatusCard(
                                         }
                                     }
                                 },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else colorScheme.surfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (isSelected) AccentCyan else colorScheme.outline.copy(alpha = 0.4f)
-                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+                                border = if (isSelected) BorderStroke(1.dp, colorScheme.primary) else null,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -825,28 +765,27 @@ fun ServerStatusCard(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = file.nameWithoutExtension,
-                                            color = colorScheme.onSurface,
+                                            style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
+                                            color = if (isSelected) colorScheme.onPrimaryContainer else colorScheme.onSurface
                                         )
                                         Text(
                                             text = "${file.length() / (1024 * 1024)} MB GGUF",
-                                            color = colorScheme.onSurface.copy(alpha = 0.55f),
-                                            fontSize = 11.sp,
-                                            fontFamily = FontFamily.Monospace
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isSelected) colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant
                                         )
                                     }
                                     if (isSelected) {
                                         Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = AccentCyan
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = colorScheme.primary
                                         ) {
                                             Text(
                                                 text = "ACTIVE",
-                                                color = Color.Black,
+                                                color = colorScheme.onPrimary,
+                                                style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 10.sp,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                                             )
                                         }
                                     }
@@ -858,35 +797,42 @@ fun ServerStatusCard(
             },
             confirmButton = {
                 TextButton(onClick = { showModelSelectDialog = false }) {
-                    Text("Close", color = AccentBlue)
+                    Text("Close", style = MaterialTheme.typography.labelLarge)
                 }
             },
             containerColor = colorScheme.surface,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
 
-
 @Composable
-private fun ServerMetricTile(label: String, value: String, accentColor: Color) {
+private fun ServerMetricTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
     val colorScheme = MaterialTheme.colorScheme
-    Column {
-        Text(
-            text = label,
-            color = colorScheme.onSurface.copy(alpha = 0.6f),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            color = accentColor,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 
