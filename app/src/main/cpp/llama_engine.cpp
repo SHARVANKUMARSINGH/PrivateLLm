@@ -8,10 +8,6 @@
 #include <arm_neon.h>
 #endif
 
-#if defined(_OPENMP)
-#include <omp.h>
-#endif
-
 namespace privtellm {
 
 LlamaEngine& LlamaEngine::getInstance() {
@@ -57,11 +53,6 @@ bool LlamaEngine::initModel(
     m_nGpuLayers = nGpuLayers;
     m_useMmap = useMmap;
     m_streamingExecution = streamingExecution;
-
-#if defined(_OPENMP)
-    omp_set_num_threads(m_nThreads);
-    LOGI("OpenMP initialized with %d threads", m_nThreads);
-#endif
 
     // Setup Model Parameters
     llama_model_params model_params = llama_model_default_params();

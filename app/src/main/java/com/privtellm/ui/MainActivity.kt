@@ -246,7 +246,7 @@ fun MainAppScreen(
                         onNavigateToChat = { selectedTab = MainTab.CHAT },
                         onUnloadModel = {
                             coroutineScope.launch(Dispatchers.IO) {
-                                NativeLib.releaseModel()
+                                NativeLib.releaseModelSafe()
                                 loadedModel = null
                                 LocalAiServerService.setActiveModel(null)
                                 withContext(Dispatchers.Main) {
@@ -270,7 +270,7 @@ fun MainAppScreen(
                                     downloader.setModelLoading(modelToLoad, true)
                                     try {
                                         val success = withContext(Dispatchers.IO) {
-                                            NativeLib.initModel(
+                                            NativeLib.initModelSafe(
                                                 path = targetFile.absolutePath,
                                                 nThreads = 4,
                                                 nGpuLayers = 0,
@@ -297,11 +297,11 @@ fun MainAppScreen(
                                                 ).show()
                                             }
                                         }
-                                    } catch (e: Exception) {
+                                    } catch (t: Throwable) {
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(
                                                 context,
-                                                "Error loading model: ${e.localizedMessage}",
+                                                "Error loading model: ${t.localizedMessage ?: t.javaClass.simpleName}",
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         }
@@ -319,7 +319,7 @@ fun MainAppScreen(
                         },
                         onUnloadModel = {
                             coroutineScope.launch(Dispatchers.IO) {
-                                NativeLib.releaseModel()
+                                NativeLib.releaseModelSafe()
                                 loadedModel = null
                                 LocalAiServerService.setActiveModel(null)
                                 withContext(Dispatchers.Main) {

@@ -54,7 +54,9 @@ data class ServerState(
     val totalRequests: Long = 0,
     val totalTokens: Long = 0,
     val isInferring: Boolean = false,
-    val lastError: String? = null
+    val lastError: String? = null,
+    val apiKey: String = "sk-privtellm-live-key",
+    val requireApiKey: Boolean = true
 )
 
 class LocalAiServerService : Service() {
@@ -95,6 +97,14 @@ class LocalAiServerService : Service() {
 
         fun setActiveModel(model: ModelItem?) {
             _serverState.value = _serverState.value.copy(activeModel = model)
+        }
+
+        fun setApiKey(apiKey: String) {
+            _serverState.value = _serverState.value.copy(apiKey = apiKey)
+        }
+
+        fun setRequireApiKey(required: Boolean) {
+            _serverState.value = _serverState.value.copy(requireApiKey = required)
         }
     }
 
@@ -170,28 +180,32 @@ class LocalAiServerService : Service() {
                     }
 
                     routing {
-                        // Health / Status endpoint
+                        // Web UI or JSON status based on Accept header
                         get("/") {
-                            val ipAddr = NetworkUtils.getLocalIpAddress(this@LocalAiServerService)
-                            val memory = profiler.getMemorySnapshot()
-                            call.respondText(
-                                """
-                                {
-                                  "service": "PrivteLLM On-Device Local OpenAI API",
-                                  "status": "online",
-                                  "ip": "$ipAddr",
-                                  "port": $port,
-                                  "active_model": "${_serverState.value.activeModel?.name ?: "none"}",
-                                  "free_ram_mb": ${memory.availableRamMb},
-                                  "is_inferring": ${_serverState.value.isInferring}
-                                }
-                                """.trimIndent(),
-                                ContentType.Application.Json
-                            )
+                            val accept = call.request.headers[HttpHeaders.Accept] ?: ""
+                            if (accept.contains("text/html") || !accept.contains("application/json")) {
+                                call.respondText(loadWebHtml(), ContentType.Text.Html)
+                            } else {
+                                respondStatusJson(call, port)
+                            }
+                        }
+
+                        get("/chat") {
+                            call.respondText(loadWebHtml(), ContentType.Text.Html)
+                        }
+
+                        get("/web") {
+                            call.respondText(loadWebHtml(), ContentType.Text.Html)
+                        }
+
+                        get("/v1/status") {
+                            respondStatusJson(call, port)
                         }
 
                         // OpenAI: GET /v1/models
                         get("/v1/models") {
+                            if (!validateApiKey(call)) return@get
+
                             val modelDir = ModelCatalog.getInternalModelDir(this@LocalAiServerService)
                             val installedFiles = modelDir.listFiles { _, name -> name.endsWith(".gguf") } ?: emptyArray()
 
@@ -224,6 +238,7 @@ class LocalAiServerService : Service() {
 
                         // OpenAI: POST /v1/chat/completions
                         post("/v1/chat/completions") {
+                            if (!validateApiKey(call)) return@post
                             handleChatCompletions(call)
                         }
                     }
@@ -250,6 +265,58 @@ class LocalAiServerService : Service() {
                 updateNotification("Error starting server: ${e.message}")
             }
         }
+    }
+
+    private fun loadWebHtml(): String {
+        return try {
+            assets.open("web/index.html").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            """<!DOCTYPE html><html><head><meta charset="utf-8"><title>PrivteLLM</title></head><body style="background:#0a0e17;color:#fff;font-family:sans-serif;padding:30px;"><h2>PrivteLLM Web Client</h2><p>Please open the PrivteLLM Android app to load a model.</p></body></html>"""
+        }
+    }
+
+    private suspend fun validateApiKey(call: ApplicationCall): Boolean {
+        val state = _serverState.value
+        if (!state.requireApiKey) return true
+
+        val authHeader = call.request.headers[HttpHeaders.Authorization]
+        if (authHeader == null || !authHeader.startsWith("Bearer ", ignoreCase = true)) {
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                ApiErrorResponse(ApiError("Missing or invalid API key. Header must be: 'Authorization: Bearer <key>'.", type = "invalid_api_key", code = 401))
+            )
+            return false
+        }
+
+        val token = authHeader.substring(7).trim()
+        if (token != state.apiKey) {
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                ApiErrorResponse(ApiError("Incorrect API key provided.", type = "invalid_api_key", code = 401))
+            )
+            return false
+        }
+        return true
+    }
+
+    private suspend fun respondStatusJson(call: ApplicationCall, port: Int) {
+        val ipAddr = NetworkUtils.getLocalIpAddress(this@LocalAiServerService)
+        val memory = profiler.getMemorySnapshot()
+        call.respondText(
+            """
+            {
+              "service": "PrivteLLM On-Device Local OpenAI API",
+              "status": "online",
+              "ip": "$ipAddr",
+              "port": $port,
+              "active_model": "${_serverState.value.activeModel?.name ?: "none"}",
+              "free_ram_mb": ${memory.availableRamMb},
+              "is_inferring": ${_serverState.value.isInferring},
+              "requires_api_key": ${_serverState.value.requireApiKey}
+            }
+            """.trimIndent(),
+            ContentType.Application.Json
+        )
     }
 
     private suspend fun handleChatCompletions(call: ApplicationCall) {

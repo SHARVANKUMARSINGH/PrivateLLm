@@ -18,20 +18,6 @@ if(${ANDROID_ABI} STREQUAL "arm64-v8a")
     add_link_options(-flto)
 endif()
 
-# OpenMP Support
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    add_compile_options(${OpenMP_CXX_FLAGS})
-    add_link_options(${OpenMP_CXX_FLAGS})
-    set(OPENMP_LIBRARIES OpenMP::OpenMP_CXX)
-    message(STATUS "OpenMP enabled for parallel tensor computation")
-else()
-    # Direct compiler flag fallback for Android NDK Clang
-    add_compile_options(-fopenmp)
-    add_link_options(-fopenmp -static-openmp)
-    message(STATUS "OpenMP enabled via compiler flags -fopenmp")
-endif()
-
 # Vulkan Acceleration for Mobile GPU Offloading
 find_library(vulkan-lib vulkan)
 if(vulkan-lib)
@@ -71,5 +57,4 @@ target_link_libraries(
     ${log-lib}
     ${android-lib}
     $<$<BOOL:${vulkan-lib}>:${vulkan-lib}>
-    $<$<BOOL:${OPENMP_LIBRARIES}>:${OPENMP_LIBRARIES}>
 )

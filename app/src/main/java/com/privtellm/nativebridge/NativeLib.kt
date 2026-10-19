@@ -38,8 +38,58 @@ object NativeLib {
             System.loadLibrary("privtellm_native")
             isNativeLoaded.set(true)
             Log.i(TAG, "Successfully loaded libprivtellm_native.so")
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e(TAG, "Failed to load libprivtellm_native.so: ${e.message}")
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to load libprivtellm_native.so: ${t.message}", t)
+            isNativeLoaded.set(false)
+        }
+    }
+
+    fun isNativeReady(): Boolean = isNativeLoaded.get()
+
+    fun initModelSafe(
+        path: String,
+        nThreads: Int = 4,
+        nGpuLayers: Int = 0,
+        mmap: Boolean = true,
+        streamingExecution: Boolean = true
+    ): Boolean {
+        if (!isNativeLoaded.get()) {
+            Log.e(TAG, "Native library is not loaded. Cannot init model.")
+            return false
+        }
+        return try {
+            initModel(path, nThreads, nGpuLayers, mmap, streamingExecution)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error in native initModel: ${t.message}", t)
+            false
+        }
+    }
+
+    fun releaseModelSafe() {
+        if (!isNativeLoaded.get()) return
+        try {
+            releaseModel()
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error in native releaseModel: ${t.message}", t)
+        }
+    }
+
+    fun stopGenerationSafe() {
+        if (!isNativeLoaded.get()) return
+        try {
+            stopGeneration()
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error in native stopGeneration: ${t.message}", t)
+        }
+    }
+
+    fun isModelLoadedSafe(): Boolean {
+        if (!isNativeLoaded.get()) return false
+        return try {
+            isModelLoaded()
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error in native isModelLoaded: ${t.message}", t)
+            false
         }
     }
 
@@ -69,10 +119,15 @@ object NativeLib {
         if (!isNativeLoaded.get()) {
             return NativeMemoryStats(0, 0, 0, 0)
         }
-        val raw = getNativeMemoryStats()
-        return if (raw.size >= 4) {
-            NativeMemoryStats(raw[0], raw[1], raw[2], raw[3])
-        } else {
+        return try {
+            val raw = getNativeMemoryStats()
+            if (raw.size >= 4) {
+                NativeMemoryStats(raw[0], raw[1], raw[2], raw[3])
+            } else {
+                NativeMemoryStats(0, 0, 0, 0)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error getting native memory stats: ${t.message}", t)
             NativeMemoryStats(0, 0, 0, 0)
         }
     }
@@ -83,6 +138,17 @@ object NativeLib {
     fun generateStream(
         prompt: String
     ): Flow<GenerationChunk> = callbackFlow {
+        if (!isNativeLoaded.get()) {
+            trySend(
+                GenerationChunk(
+                    token = "",
+                    isFinished = true,
+                    error = "Native engine library not loaded on this device."
+                )
+            )
+            close()
+            return@callbackFlow
+        }
         val listener = object : InferenceCallback {
             override fun onToken(token: String) {
                 trySend(
@@ -125,7 +191,12 @@ object NativeLib {
         }
 
         // Run inference synchronously on the calling dispatcher thread
-        val started = generateCompletion(prompt, listener)
+        val started = try {
+            generateCompletion(prompt, listener)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed calling generateCompletion: ${t.message}", t)
+            false
+        }
         if (!started) {
             trySend(
                 GenerationChunk(
@@ -139,7 +210,7 @@ object NativeLib {
 
         awaitClose {
             // If the coroutine is cancelled (e.g. client disconnects SSE stream or UI changes)
-            stopGeneration()
+            stopGenerationSafe()
         }
     }
 }

@@ -3,6 +3,8 @@ package com.privtellm.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
@@ -25,11 +27,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privtellm.server.LocalAiServerService
 import com.privtellm.server.ServerState
 import com.privtellm.server.ServerStatus
 import com.privtellm.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun ServerStatusCard(
@@ -42,6 +46,9 @@ fun ServerStatusCard(
     val isRunning = serverState.status == ServerStatus.RUNNING
     val isStarting = serverState.status == ServerStatus.STARTING
     var showCopied by remember { mutableStateOf(false) }
+    var showCopiedKey by remember { mutableStateOf(false) }
+    var showCopiedWeb by remember { mutableStateOf(false) }
+    var showRemoteDialog by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -206,7 +213,7 @@ fun ServerStatusCard(
                         copyToClipboard(context, "API Endpoint", endpoint)
                         showCopied = true
                         coroutineScope.launch {
-                            kotlinx.coroutines.delay(2000)
+                            delay(2000)
                             showCopied = false
                         }
                     },
@@ -262,6 +269,172 @@ fun ServerStatusCard(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+
+            // API Authentication Key Card
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        copyToClipboard(context, "API Key", serverState.apiKey)
+                        showCopiedKey = true
+                        coroutineScope.launch {
+                            delay(2000)
+                            showCopiedKey = false
+                        }
+                    },
+                shape = RoundedCornerShape(10.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = Brush.horizontalGradient(listOf(AccentCyan.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f)))
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "API Key (Bearer Auth Required for Web/Remote)",
+                            color = colorScheme.onSurface.copy(alpha = 0.55f),
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = serverState.apiKey,
+                            color = AccentCyan,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                val newKey = "sk-privtellm-${UUID.randomUUID().toString().take(8)}"
+                                LocalAiServerService.setApiKey(newKey)
+                                Toast.makeText(context, "New API Key generated", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Regenerate Key",
+                                tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (showCopiedKey) StatusSuccessGlow else colorScheme.surface
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (showCopiedKey) Icons.Default.Check else Icons.Default.Key,
+                                    contentDescription = "Copy Key",
+                                    tint = if (showCopiedKey) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (showCopiedKey) "COPIED" else "COPY",
+                                    color = if (showCopiedKey) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.65f),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Web Chat Client URL Pill
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = AccentBlueGlow.copy(alpha = 0.4f),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.6f), AccentCyan.copy(alpha = 0.4f)))
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Web Chat Client (Open from any browser)",
+                            color = AccentCyan,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "http://${serverState.localIp}:${serverState.port}/",
+                            color = colorScheme.onSurface,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Row {
+                        OutlinedButton(
+                            onClick = {
+                                val url = "http://${serverState.localIp}:${serverState.port}/"
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    copyToClipboard(context, "Web Client URL", url)
+                                }
+                            },
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Open", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        IconButton(
+                            onClick = {
+                                val url = "http://${serverState.localIp}:${serverState.port}/"
+                                copyToClipboard(context, "Web Client URL", url)
+                                showCopiedWeb = true
+                                coroutineScope.launch {
+                                    delay(2000)
+                                    showCopiedWeb = false
+                                }
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (showCopiedWeb) Icons.Default.Check else Icons.Default.ContentCopy,
+                                contentDescription = "Copy Link",
+                                tint = if (showCopiedWeb) StatusSuccess else colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
@@ -389,7 +562,8 @@ fun ServerStatusCard(
                                 val curl = """
                                     curl -N -X POST http://${serverState.localIp}:${serverState.port}/v1/chat/completions \
                                       -H "Content-Type: application/json" \
-                                      -d '{"model":"local","messages":[{"role":"user","content":"Hello from LAN!"}],"stream":true}'
+                                      -H "Authorization: Bearer ${serverState.apiKey}" \
+                                      -d '{"model":"local","messages":[{"role":"user","content":"Hello from anywhere!"}],"stream":true}'
                                 """.trimIndent()
                                 copyToClipboard(context, "OpenAI cURL Command", curl)
                             },
@@ -409,20 +583,18 @@ fun ServerStatusCard(
                         }
 
                         Button(
-                            onClick = {
-                                testResult = "✓ Endpoint http://${serverState.localIp}:${serverState.port}/ ready (Latency: 4ms)"
-                            },
+                            onClick = { showRemoteDialog = true },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentBlue,
-                                contentColor = Color.White
+                                containerColor = AccentCyan,
+                                contentColor = Color.Black
                             ),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
-                            Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Ping Server", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Remote Access", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -438,6 +610,97 @@ fun ServerStatusCard(
                 }
             }
         }
+    }
+
+    // Remote Worldwide Web Access Dialog
+    if (showRemoteDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoteDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Public, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Access from Anywhere in the World", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Because your Android phone is behind a home Wi-Fi router or mobile carrier NAT, public internet users from other countries cannot reach your phone IP directly without a tunnel.",
+                        fontSize = 12.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+
+                    Text(
+                        text = "1. Cloudflare Quick Tunnel (Free, No account needed):",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = AccentCyan
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val cmd = "cloudflared tunnel --url http://${serverState.localIp}:${serverState.port}"
+                                copyToClipboard(context, "Cloudflare Tunnel Command", cmd)
+                            }
+                    ) {
+                        Text(
+                            text = "cloudflared tunnel --url http://${serverState.localIp}:${serverState.port}\n(Click to copy command)",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "2. Or with Localtunnel (Requires Node.js):",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = AccentCyan
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val cmd = "npx localtunnel --port ${serverState.port}"
+                                copyToClipboard(context, "Localtunnel Command", cmd)
+                            }
+                    ) {
+                        Text(
+                            text = "npx localtunnel --port ${serverState.port}\n(Click to copy command)",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "3. Share the generated public https:// link and your API Key (${serverState.apiKey}) with anyone! They can chat from any browser worldwide.",
+                        fontSize = 11.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.75f)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showRemoteDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    Text("Got It", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = colorScheme.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 

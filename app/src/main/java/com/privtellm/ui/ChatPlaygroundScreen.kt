@@ -295,7 +295,7 @@ fun ChatPlaygroundScreen(
 
                 if (isGenerating) {
                     IconButton(
-                        onClick = { NativeLib.stopGeneration() },
+                        onClick = { NativeLib.stopGenerationSafe() },
                         modifier = Modifier
                             .size(48.dp)
                             .background(StatusCritical, RoundedCornerShape(12.dp))
