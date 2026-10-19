@@ -46,3 +46,9 @@ proguard/
 # OS files
 .DS_Store
 Thumbs.db
+
+# External native engine sources
+app/src/main/cpp/llama_src/
+attachments/
+
+

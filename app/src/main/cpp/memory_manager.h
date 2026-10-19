@@ -6,7 +6,7 @@
 #include <vector>
 #include <atomic>
 #include <android/log.h>
-#include "include/llama.h"
+#include "llama.h"
 
 #define TAG_PRIVTE_MEM "PrivteLLM_Mem"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG_PRIVTE_MEM, __VA_ARGS__)

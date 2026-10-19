@@ -6,11 +6,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 
-# Optimization Flags for ARM64-v8a with NEON & OpenMP
+# Optimization Flags for ARM64-v8a with NEON SIMD
 if(${ANDROID_ABI} STREQUAL "arm64-v8a")
     add_compile_options(
         -O3
-        -march=armv8-a+simd+crypto
+        -march=armv8-a+simd
         -ffast-math
         -flto
         -funroll-loops
@@ -18,13 +18,25 @@ if(${ANDROID_ABI} STREQUAL "arm64-v8a")
     add_link_options(-flto)
 endif()
 
-# Vulkan Acceleration for Mobile GPU Offloading
-find_library(vulkan-lib vulkan)
-if(vulkan-lib)
-    message(STATUS "Vulkan library located at: ${vulkan-lib}")
-    add_compile_definitions(GGML_USE_VULKAN=1)
-else()
-    message(WARNING "Vulkan library not found, falling back to CPU NEON execution")
+# Configuration flags for llama.cpp build
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "Disable OpenMP to avoid libomp.so issues" FORCE)
+set(LLAMA_OPENMP OFF CACHE BOOL "Disable OpenMP" FORCE)
+set(LLAMA_BUILD_COMMON OFF CACHE BOOL "Disable common tools" FORCE)
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "Disable tests" FORCE)
+set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "Disable tools" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "Disable examples" FORCE)
+set(LLAMA_BUILD_SERVER OFF CACHE BOOL "Disable server binary" FORCE)
+set(LLAMA_BUILD_APP OFF CACHE BOOL "Disable app binary" FORCE)
+set(LLAMA_BUILD_UI OFF CACHE BOOL "Disable UI binary" FORCE)
+set(LLAMA_STANDALONE OFF CACHE BOOL "Standalone build off" FORCE)
+set(LLAMA_CURL OFF CACHE BOOL "Disable curl" FORCE)
+set(LLAMA_FATAL_WARNINGS OFF CACHE BOOL "Disable fatal warnings" FORCE)
+set(GGML_FATAL_WARNINGS OFF CACHE BOOL "Disable fatal warnings" FORCE)
+
+# Add real llama.cpp source subdirectory
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/llama_src/CMakeLists.txt")
+    add_subdirectory(llama_src)
 endif()
 
 # Android Logging & System Libraries
@@ -34,7 +46,8 @@ find_library(android-lib android)
 # Include Directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama_src/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama_src/ggml/include
 )
 
 # Source Files
@@ -51,10 +64,10 @@ add_library(
     ${NATIVE_SOURCES}
 )
 
-# Link Dependencies
+# Link Dependencies: llama statically bundles ggml, ggml-base, and ggml-cpu
 target_link_libraries(
     privtellm_native
+    llama
     ${log-lib}
     ${android-lib}
-    $<$<BOOL:${vulkan-lib}>:${vulkan-lib}>
 )

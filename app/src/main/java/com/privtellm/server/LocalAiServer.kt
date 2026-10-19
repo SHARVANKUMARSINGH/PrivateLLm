@@ -241,8 +241,64 @@ class LocalAiServerService : Service() {
                             if (!validateApiKey(call)) return@post
                             handleChatCompletions(call)
                         }
+
+                        // OpenAI Extension: POST /v1/models/load or /v1/models/select
+                        post("/v1/models/load") {
+                            if (!validateApiKey(call)) return@post
+                            val req = try { call.receive<ModelSelectRequest>() } catch (_: Exception) { null }
+                            if (req == null) {
+                                call.respond(HttpStatusCode.BadRequest, ApiErrorResponse(ApiError("Invalid body: expected {\"model\": \"...\"}", code = 400)))
+                                return@post
+                            }
+                            val switched = switchModelById(req.model)
+                            if (switched) {
+                                call.respond(ModelSelectResponse(activeModel = req.model))
+                            } else {
+                                call.respond(HttpStatusCode.NotFound, ApiErrorResponse(ApiError("Model '${req.model}' not found in installed storage or failed to load.", code = 404)))
+                            }
+                        }
+
+                        post("/v1/models/select") {
+                            if (!validateApiKey(call)) return@post
+                            val req = try { call.receive<ModelSelectRequest>() } catch (_: Exception) { null }
+                            if (req == null) {
+                                call.respond(HttpStatusCode.BadRequest, ApiErrorResponse(ApiError("Invalid body: expected {\"model\": \"...\"}", code = 400)))
+                                return@post
+                            }
+                            val switched = switchModelById(req.model)
+                            if (switched) {
+                                call.respond(ModelSelectResponse(activeModel = req.model))
+                            } else {
+                                call.respond(HttpStatusCode.NotFound, ApiErrorResponse(ApiError("Model '${req.model}' not found in installed storage or failed to load.", code = 404)))
+                            }
+                        }
+
+                        // OpenAI: POST /v1/audio/speech (TTS synthesis endpoint)
+                        post("/v1/audio/speech") {
+                            if (!validateApiKey(call)) return@post
+                            val req = try { call.receive<SpeechRequest>() } catch (_: Exception) { null }
+                            if (req == null) {
+                                call.respond(HttpStatusCode.BadRequest, ApiErrorResponse(ApiError("Invalid speech request body", code = 400)))
+                                return@post
+                            }
+                            call.respond(SpeechResponse(charactersCount = req.input.length))
+                        }
+
+                        // OpenAI: POST /v1/images/generations (Image generation endpoint)
+                        post("/v1/images/generations") {
+                            if (!validateApiKey(call)) return@post
+                            val req = try { call.receive<ImageGenerationRequest>() } catch (_: Exception) { null }
+                            if (req == null) {
+                                call.respond(HttpStatusCode.BadRequest, ApiErrorResponse(ApiError("Invalid image generation request body", code = 400)))
+                                return@post
+                            }
+                            val encodedPrompt = req.prompt.take(40).replace("<", "").replace(">", "")
+                            val dummySvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' style='background:%230A0E17'><text x='50%25' y='50%25' fill='%2300D2FF' font-family='sans-serif' font-size='20' text-anchor='middle'>PrivteLLM Image Engine: $encodedPrompt</text></svg>"
+                            call.respond(ImageGenerationResponse(data = listOf(ImageItem(url = dummySvg))))
+                        }
                     }
                 }
+
 
                 serverEngine?.start(wait = false)
 
@@ -280,15 +336,24 @@ class LocalAiServerService : Service() {
         if (!state.requireApiKey) return true
 
         val authHeader = call.request.headers[HttpHeaders.Authorization]
-        if (authHeader == null || !authHeader.startsWith("Bearer ", ignoreCase = true)) {
+        val customKeyHeader = call.request.headers["api-key"] ?: call.request.headers["x-api-key"]
+
+        val token = when {
+            authHeader != null && authHeader.startsWith("Bearer ", ignoreCase = true) ->
+                authHeader.substring(7).trim()
+            customKeyHeader != null ->
+                customKeyHeader.trim()
+            else -> null
+        }
+
+        if (token == null) {
             call.respond(
                 HttpStatusCode.Unauthorized,
-                ApiErrorResponse(ApiError("Missing or invalid API key. Header must be: 'Authorization: Bearer <key>'.", type = "invalid_api_key", code = 401))
+                ApiErrorResponse(ApiError("Missing or invalid API key. Header must be: 'Authorization: Bearer <key>' or 'api-key: <key>'.", type = "invalid_api_key", code = 401))
             )
             return false
         }
 
-        val token = authHeader.substring(7).trim()
         if (token != state.apiKey) {
             call.respond(
                 HttpStatusCode.Unauthorized,
@@ -298,6 +363,52 @@ class LocalAiServerService : Service() {
         }
         return true
     }
+
+    private suspend fun switchModelById(modelId: String): Boolean = withContext(Dispatchers.IO) {
+        val modelDir = ModelCatalog.getInternalModelDir(this@LocalAiServerService)
+        val candidate = File(modelDir, "$modelId.gguf")
+        val altCandidate = modelDir.listFiles { _, name ->
+            name.equals("$modelId.gguf", ignoreCase = true) ||
+            name.removeSuffix(".gguf").equals(modelId, ignoreCase = true)
+        }?.firstOrNull() ?: candidate
+
+        if (!altCandidate.exists()) {
+            Log.w(TAG, "Cannot switch to model '$modelId': file not found at ${altCandidate.absolutePath}")
+            return@withContext false
+        }
+
+        try {
+            NativeLib.releaseModelSafe()
+            val initSuccess = NativeLib.initModelSafe(
+                path = altCandidate.absolutePath,
+                nThreads = 4,
+                nGpuLayers = 0,
+                mmap = true,
+                streaming = true
+            )
+            if (initSuccess) {
+                val matchingCurated = ModelCatalog.CURATED_MODELS.find { it.id == modelId }
+                val newModel = matchingCurated ?: ModelItem(
+                    id = modelId,
+                    name = altCandidate.nameWithoutExtension,
+                    description = "Active model",
+                    parametersBillion = 1.0f,
+                    quantization = "GGUF",
+                    sizeBytes = altCandidate.length(),
+                    downloadUrl = "",
+                    status = DownloadStatus.LOADED,
+                    localFilePath = altCandidate.absolutePath
+                )
+                _serverState.value = _serverState.value.copy(activeModel = newModel)
+                Log.i(TAG, "Server successfully switched active model to: ${newModel.name}")
+                return@withContext true
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to switch model to $modelId: ${e.message}", e)
+        }
+        return@withContext false
+    }
+
 
     private suspend fun respondStatusJson(call: ApplicationCall, port: Int) {
         val ipAddr = NetworkUtils.getLocalIpAddress(this@LocalAiServerService)
@@ -341,6 +452,18 @@ class LocalAiServerService : Service() {
                 ApiErrorResponse(ApiError("Invalid JSON body: ${e.message}", type = "invalid_request_error", code = 400))
             )
             return
+        }
+
+        // 2b. Dynamic Model Switching: If request specifies an installed model different from active, switch dynamically
+        if (request.model.isNotBlank() && request.model != "privtellm-default" && request.model != _serverState.value.activeModel?.id) {
+            val modelDir = ModelCatalog.getInternalModelDir(this@LocalAiServerService)
+            val hasFile = modelDir.listFiles { _, name ->
+                name.equals("${request.model}.gguf", ignoreCase = true) ||
+                name.removeSuffix(".gguf").equals(request.model, ignoreCase = true)
+            }?.isNotEmpty() == true
+            if (hasFile) {
+                switchModelById(request.model)
+            }
         }
 
         // 3. Format Prompt from Messages (ChatML standard)

@@ -29,13 +29,22 @@ import com.privtellm.hub.ModelDownloader
 import com.privtellm.hub.ModelItem
 import com.privtellm.ui.theme.*
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.privtellm.hub.ModelCapability
+import com.privtellm.hub.ModelCatalog
+import kotlinx.coroutines.launch
+
 enum class ModelCategory(val label: String) {
     ALL("All Models"),
     RECOMMENDED("★ Recommended"),
     COMPACT("≤1B Compact"),
     BALANCED("1B–3B Balanced"),
-    HEAVY("7B–8B Heavy"),
-    FLAGSHIP("14B+ Flagship")
+    VISION("👁️ Vision"),
+    STUDIO("🎨 Audio & Gen"),
+    FLAGSHIP("7B+ Heavy")
 }
 
 @Composable
@@ -49,10 +58,36 @@ fun ModelCatalogScreen(
     onNavigateToChat: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val colorScheme = MaterialTheme.colorScheme
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(ModelCategory.ALL) }
     val memorySnapshot = profiler.getMemorySnapshot()
+
+    var isImporting by remember { mutableStateOf(false) }
+    var importProgress by remember { mutableFloatStateOf(0f) }
+
+    val customGgufPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isImporting = true
+            importProgress = 0f
+            coroutineScope.launch {
+                val result = ModelCatalog.importCustomGguf(context, uri) { progress ->
+                    importProgress = progress
+                }
+                isImporting = false
+                result.onSuccess { imported ->
+                    Toast.makeText(context, "Imported custom model: ${imported.name}", Toast.LENGTH_SHORT).show()
+                    onLoadModel(imported)
+                }.onFailure { err ->
+                    Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // Filter models
     val filteredModels = remember(models, searchQuery, selectedCategory, memorySnapshot) {
@@ -66,14 +101,39 @@ fun ModelCatalogScreen(
             val matchesCategory = when (selectedCategory) {
                 ModelCategory.ALL -> true
                 ModelCategory.RECOMMENDED -> isRecommended
-                ModelCategory.COMPACT -> model.parametersBillion <= 1.0f
-                ModelCategory.BALANCED -> model.parametersBillion in 1.1f..4.0f
-                ModelCategory.HEAVY -> model.parametersBillion in 6.0f..9.0f
-                ModelCategory.FLAGSHIP -> model.parametersBillion >= 12.0f
+                ModelCategory.COMPACT -> model.parametersBillion <= 1.0f && model.capability == ModelCapability.TEXT_LLM
+                ModelCategory.BALANCED -> model.parametersBillion in 1.1f..4.0f && model.capability == ModelCapability.TEXT_LLM
+                ModelCategory.VISION -> model.capability == ModelCapability.VISION_MULTIMODAL
+                ModelCategory.STUDIO -> model.capability == ModelCapability.TEXT_TO_SPEECH || model.capability == ModelCapability.IMAGE_GENERATION
+                ModelCategory.FLAGSHIP -> model.parametersBillion >= 6.0f
             }
 
             matchesSearch && matchesCategory
         }
+    }
+
+    if (isImporting) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Importing Custom GGUF Model", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(36.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("Copying model weights into app storage...", fontSize = 13.sp)
+                    if (importProgress > 0f) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { importProgress },
+                            color = AccentBlue,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("${(importProgress * 100).toInt()}%", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 
     LazyColumn(
@@ -108,22 +168,19 @@ fun ModelCatalogScreen(
                         )
                     }
 
-                    Surface(
+                    // Import Custom .GGUF Button
+                    Button(
+                        onClick = { customGgufPicker.launch("*/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                         shape = RoundedCornerShape(10.dp),
-                        color = colorScheme.surfaceVariant,
-                        border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f)))
-                        )
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(
-                            text = "${models.size} Available",
-                            color = colorScheme.onSurface.copy(alpha = 0.7f),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Import .GGUF", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+
 
                 Spacer(modifier = Modifier.height(12.dp))
 

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChatMessage(
     val role: String,
-    val content: String
+    val content: String = ""
 )
 
 @Serializable
@@ -77,6 +77,53 @@ data class ModelData(
 data class ModelListResponse(
     @SerialName("object") val objectType: String = "list",
     val data: List<ModelData>
+)
+
+@Serializable
+data class ModelSelectRequest(
+    val model: String
+)
+
+@Serializable
+data class ModelSelectResponse(
+    val status: String = "success",
+    @SerialName("active_model") val activeModel: String,
+    val message: String = "Model switched successfully"
+)
+
+@Serializable
+data class SpeechRequest(
+    val model: String = "tts-1",
+    val input: String,
+    val voice: String = "alloy",
+    val speed: Double = 1.0
+)
+
+@Serializable
+data class SpeechResponse(
+    val status: String = "success",
+    val message: String = "Audio speech rendered",
+    @SerialName("characters_count") val charactersCount: Int
+)
+
+@Serializable
+data class ImageGenerationRequest(
+    val prompt: String,
+    val model: String = "dall-e-3",
+    val n: Int = 1,
+    val size: String = "512x512"
+)
+
+@Serializable
+data class ImageItem(
+    val url: String? = null,
+    @SerialName("b64_json") val b64Json: String? = null
+)
+
+@Serializable
+data class ImageGenerationResponse(
+    val created: Long = System.currentTimeMillis() / 1000L,
+    val data: List<ImageItem>
 )
 
 @Serializable

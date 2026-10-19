@@ -49,6 +49,7 @@ fun ServerStatusCard(
     var showCopiedKey by remember { mutableStateOf(false) }
     var showCopiedWeb by remember { mutableStateOf(false) }
     var showRemoteDialog by remember { mutableStateOf(false) }
+    var showModelSelectDialog by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -319,9 +320,9 @@ fun ServerStatusCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = {
-                                val newKey = "sk-privtellm-${UUID.randomUUID().toString().take(8)}"
+                                val newKey = "sk-privtellm-${UUID.randomUUID().toString().replace("-", "")}"
                                 LocalAiServerService.setApiKey(newKey)
-                                Toast.makeText(context, "New API Key generated", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "New OpenAI API Key generated", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.size(26.dp)
                         ) {
@@ -477,16 +478,30 @@ fun ServerStatusCard(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    if (serverState.activeModel != null) {
-                        Text(
-                            text = serverState.activeModel?.quantization ?: "",
-                            color = colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (serverState.activeModel != null) {
+                            Text(
+                                text = serverState.activeModel.quantization,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f),
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        TextButton(
+                            onClick = { showModelSelectDialog = true },
+                            modifier = Modifier.height(26.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(13.dp), tint = AccentCyan)
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("SELECT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentCyan)
+                        }
                     }
                 }
             }
+
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -698,11 +713,151 @@ fun ServerStatusCard(
                     Text("Got It", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
+    // Model Selection Modal Dialog
+    if (showModelSelectDialog) {
+        val modelDir = ModelCatalog.getInternalModelDir(context)
+        val installedFiles = remember {
+            modelDir.listFiles { _, name -> name.endsWith(".gguf", ignoreCase = true) }?.toList() ?: emptyList()
+        }
+
+        AlertDialog(
+            onDismissRequest = { showModelSelectDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Dns, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Select Model for Server", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Choose which local model the OpenAI server should route API completions to:",
+                        color = colorScheme.onSurface.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+
+                    if (installedFiles.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "No .gguf models found in storage. Go to the Models tab to download or import a GGUF model.",
+                                color = colorScheme.onSurface.copy(alpha = 0.65f),
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        installedFiles.forEach { file ->
+                            val isSelected = serverState.activeModel?.id == file.nameWithoutExtension
+                            Surface(
+                                onClick = {
+                                    showModelSelectDialog = false
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        try {
+                                            NativeLib.releaseModelSafe()
+                                            val ok = NativeLib.initModelSafe(
+                                                path = file.absolutePath,
+                                                nThreads = 4,
+                                                nGpuLayers = 0,
+                                                mmap = true,
+                                                streaming = true
+                                            )
+                                            if (ok) {
+                                                val matching = ModelCatalog.CURATED_MODELS.find { it.id == file.nameWithoutExtension }
+                                                val model = matching ?: ModelItem(
+                                                    id = file.nameWithoutExtension,
+                                                    name = file.nameWithoutExtension.replace("_", " ").replace("-", " "),
+                                                    description = "Active model",
+                                                    parametersBillion = 1.0f,
+                                                    quantization = "GGUF",
+                                                    sizeBytes = file.length(),
+                                                    downloadUrl = "",
+                                                    status = DownloadStatus.LOADED,
+                                                    localFilePath = file.absolutePath
+                                                )
+                                                LocalAiServerService.setActiveModel(model)
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Server loaded ${model.name}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } catch (e: Throwable) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "Failed to load model: ${e.message}", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) AccentCyan.copy(alpha = 0.15f) else colorScheme.surfaceVariant,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.horizontalGradient(
+                                        if (isSelected) listOf(AccentCyan, AccentCyan)
+                                        else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
+                                    )
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = file.nameWithoutExtension,
+                                            color = colorScheme.onSurface,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = "${file.length() / (1024 * 1024)} MB GGUF",
+                                            color = colorScheme.onSurface.copy(alpha = 0.55f),
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = AccentCyan
+                                        ) {
+                                            Text(
+                                                text = "ACTIVE",
+                                                color = Color.Black,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showModelSelectDialog = false }) {
+                    Text("Close", color = AccentBlue)
+                }
+            },
             containerColor = colorScheme.surface,
             shape = RoundedCornerShape(16.dp)
         )
     }
 }
+
 
 @Composable
 private fun ServerMetricTile(label: String, value: String, accentColor: Color) {

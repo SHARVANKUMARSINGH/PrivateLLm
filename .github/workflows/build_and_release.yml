@@ -48,8 +48,16 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" "cmake;3.22.1" "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
 
+      - name: Fetch llama.cpp engine sources
+        run: |
+          if [ ! -d "app/src/main/cpp/llama_src" ]; then
+            echo "Cloning llama.cpp shallowly..."
+            git clone --depth 1 https://github.com/ggerganov/llama.cpp.git app/src/main/cpp/llama_src
+          fi
+
       - name: Grant Execute Permission to gradlew
         run: chmod +x gradlew
+
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace

@@ -3,6 +3,8 @@
 #include <thread>
 #include <cstring>
 #include <cmath>
+#include <vector>
+#include <algorithm>
 
 #if defined(__ARM_NEON)
 #include <arm_neon.h>
@@ -38,15 +40,9 @@ bool LlamaEngine::initModel(
         releaseModel();
     }
 
-    // Safety pre-check: Verify free RAM before loading
     uint64_t availRam = MemoryManager::getInstance().getAvailableRamMb();
-    LOGI("Init model: %s, threads=%d, gpuLayers=%d, mmap=%d, streaming=%d. Avail RAM: %llu MB",
-         modelPath.c_str(), nThreads, nGpuLayers, useMmap, streamingExecution, availRam);
-
-    if (availRam > 0 && availRam < 200) {
-        LOGE("Aborting model init: System free RAM (%llu MB) is below safe threshold (200 MB).", availRam);
-        return false;
-    }
+    LOGI("Init real llama.cpp model: %s, threads=%d, gpuLayers=%d, mmap=%d. Avail RAM: %llu MB",
+         modelPath.c_str(), nThreads, nGpuLayers, useMmap, availRam);
 
     m_modelPath = modelPath;
     m_nThreads = (nThreads > 0) ? nThreads : 4;
@@ -58,49 +54,49 @@ bool LlamaEngine::initModel(
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = nGpuLayers;
     model_params.use_mmap = useMmap;
-    model_params.use_mlock = false; // Never lock in RAM on Android to prevent OOM
+    model_params.use_mlock = false; // Never lock in RAM on mobile
     model_params.check_tensors = false;
 
-    // Load Model
-    m_model = llama_load_model_from_file(modelPath.c_str(), model_params);
+    // Load Model using modern llama.cpp API
+    m_model = llama_model_load_from_file(modelPath.c_str(), model_params);
     if (!m_model) {
-        LOGE("Failed to load llama model from: %s", modelPath.c_str());
+        LOGE("Failed to load real llama model from file: %s", modelPath.c_str());
         return false;
     }
 
-    m_nLayers = llama_n_layer(m_model);
-    LOGI("Model loaded successfully. Total transformer layers: %d", m_nLayers);
+    m_vocab = llama_model_get_vocab(m_model);
+    m_nLayers = llama_model_n_layer(m_model);
+    LOGI("Real model loaded successfully! Total transformer layers: %d", m_nLayers);
 
     // Setup Dynamic Layer Streaming if requested
-    if (streamingExecution && useMmap && m_model && m_model != reinterpret_cast<struct llama_model*>(0xDEADBEEF)) {
-        // Register approximate mmap region to allow madvise-based dynamic page streaming
-        // In real GGUF mapping, this advises the kernel to keep only active layer working sets resident
+    if (streamingExecution && useMmap && m_model) {
         MemoryManager::getInstance().registerMmapRegion(
             reinterpret_cast<void*>(m_model),
-            1024ULL * 1024ULL * 1024ULL, // Virtual weight window
+            1024ULL * 1024ULL * 1024ULL,
             m_nLayers
         );
     }
 
     // Setup Context Parameters
     llama_context_params ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = 2048; // Safe default for mobile
+    ctx_params.n_ctx = 2048; // Safe default for mobile edge devices
     ctx_params.n_batch = 512;
     ctx_params.n_threads = m_nThreads;
     ctx_params.n_threads_batch = m_nThreads;
-    ctx_params.flash_attn = true; // Use Flash Attention if available to reduce memory
+    ctx_params.flash_attn = true;
 
-    m_ctx = llama_new_context_with_model(m_model, ctx_params);
+    m_ctx = llama_init_from_model(m_model, ctx_params);
     if (!m_ctx) {
-        LOGE("Failed to create llama context");
-        llama_free_model(m_model);
+        LOGE("Failed to create llama context from loaded model");
+        llama_model_free(m_model);
         m_model = nullptr;
+        m_vocab = nullptr;
         return false;
     }
 
     m_isLoaded.store(true);
     m_stopRequested.store(false);
-    LOGI("Llama context created. Ready for inference.");
+    LOGI("Real Llama context created and ready for inference.");
     return true;
 }
 
@@ -111,7 +107,7 @@ bool LlamaEngine::generateCompletion(
     float topP,
     int maxTokens
 ) {
-    if (!m_isLoaded.load() || !m_model || !m_ctx) {
+    if (!m_isLoaded.load() || !m_model || !m_ctx || !m_vocab) {
         if (callback.onError) {
             callback.onError(500, "Model is not loaded");
         }
@@ -119,10 +115,10 @@ bool LlamaEngine::generateCompletion(
     }
 
     // Guardrail Check before starting inference
-    if (MemoryManager::getInstance().isMemoryUnderThreshold(450)) {
+    if (MemoryManager::getInstance().isMemoryUnderThreshold(350)) {
         uint64_t avail = MemoryManager::getInstance().getAvailableRamMb();
         std::string err = "Inference aborted: Free RAM (" + std::to_string(avail) +
-                          " MB) is below critical 450 MB threshold.";
+                          " MB) is below critical 350 MB threshold.";
         LOGE("%s", err.c_str());
         if (callback.onError) {
             callback.onError(429, err);
@@ -135,22 +131,36 @@ bool LlamaEngine::generateCompletion(
 
     auto startTime = std::chrono::steady_clock::now();
 
-    // 1. Tokenize prompt
-    std::vector<llama_token> tokens(prompt.length() + 32);
+    // 1. Tokenize prompt with llama_vocab
+    int nPromptTokens = -llama_tokenize(
+        m_vocab,
+        prompt.c_str(),
+        static_cast<int32_t>(prompt.length()),
+        nullptr,
+        0,
+        true,
+        true
+    );
+
+    if (nPromptTokens <= 0) {
+        nPromptTokens = static_cast<int>(prompt.length()) + 16;
+    }
+
+    std::vector<llama_token> tokens(nPromptTokens);
     int nTokens = llama_tokenize(
-        m_model,
+        m_vocab,
         prompt.c_str(),
         static_cast<int32_t>(prompt.length()),
         tokens.data(),
         static_cast<int32_t>(tokens.size()),
-        true,  // add_special
-        true   // parse_special
+        true,
+        true
     );
 
     if (nTokens < 0) {
         tokens.resize(-nTokens);
         nTokens = llama_tokenize(
-            m_model,
+            m_vocab,
             prompt.c_str(),
             static_cast<int32_t>(prompt.length()),
             tokens.data(),
@@ -159,14 +169,17 @@ bool LlamaEngine::generateCompletion(
             true
         );
     }
-    tokens.resize(nTokens);
+    tokens.resize(std::max(0, nTokens));
 
     int promptTokens = nTokens;
     int completionTokens = 0;
     std::string fullCompletion;
 
-    // Reset KV cache for sequence 0
-    llama_kv_cache_clear(m_ctx);
+    // Reset KV cache for fresh generation
+    llama_memory_t mem = llama_get_memory(m_ctx);
+    if (mem) {
+        llama_memory_clear(mem, true);
+    }
 
     // 2. Ingest prompt tokens into KV cache
     llama_batch batch = llama_batch_init(512, 0, 1);
@@ -191,7 +204,6 @@ bool LlamaEngine::generateCompletion(
             batch.logits[j] = (j == chunkSize - 1);
         }
 
-        // Layer streaming hook: advise active layers during batch decode
         if (m_streamingExecution) {
             for (int l = 0; l < m_nLayers; ++l) {
                 MemoryManager::getInstance().adviseLayerActive(l);
@@ -208,64 +220,52 @@ bool LlamaEngine::generateCompletion(
         currentPos += chunkSize;
     }
 
-    // 3. Autoregressive Token Generation Loop
-    int nVocab = llama_n_vocab(m_model);
-    std::vector<llama_token_data> candidates;
-    candidates.reserve(nVocab);
+    // 3. Initialize modern llama_sampler chain
+    auto sparams = llama_sampler_chain_default_params();
+    llama_sampler* smpl = llama_sampler_chain_init(sparams);
+    if (temperature <= 0.0f) {
+        llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    } else {
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_p(topP, 1));
+        llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature));
+        llama_sampler_chain_add(smpl, llama_sampler_init_dist(1337));
+    }
 
     char pieceBuf[256];
 
     for (int step = 0; step < maxTokens; ++step) {
-        // Check for cancellation
         if (m_stopRequested.load()) {
             LOGI("Inference stopped cooperatively by request at token step %d", step);
             break;
         }
 
-        // Active Memory Guardrail during generation loop
-        if (MemoryManager::getInstance().isMemoryUnderThreshold(450)) {
+        // Memory Guardrail during generation loop
+        if (MemoryManager::getInstance().isMemoryUnderThreshold(300)) {
             uint64_t avail = MemoryManager::getInstance().getAvailableRamMb();
             LOGE("Critical memory warning during generation: %llu MB left. Aborting native loop.", avail);
             if (callback.onError) {
-                callback.onError(429, "Device memory dropped below 450 MB during generation. Safely stopped.");
+                callback.onError(429, "Device memory dropped below 300 MB during generation. Safely stopped.");
             }
             break;
         }
 
-        // Memory-conscious KV-cache pruning if nearing threshold
+        // Context pruning if nearing threshold
         MemoryManager::getInstance().maybePruneKvCache(m_ctx, currentPos, 32, 64);
 
-        // Sample token from logits
-        float* logits = llama_get_logits_ith(m_ctx, batch.n_tokens - 1);
-        candidates.clear();
-        for (llama_token token_id = 0; token_id < nVocab; ++token_id) {
-            candidates.push_back({token_id, logits[token_id], 0.0f});
-        }
-        llama_token_data_array candidates_p = {
-            candidates.data(),
-            candidates.size(),
-            false
-        };
-
-        llama_token nextToken;
-        if (temperature <= 0.0f) {
-            nextToken = llama_sample_token_greedy(m_ctx, &candidates_p);
-        } else {
-            llama_sample_top_p(m_ctx, &candidates_p, topP, 1);
-            llama_sample_temp(m_ctx, &candidates_p, temperature);
-            nextToken = llama_sample_token(m_ctx, &candidates_p);
-        }
+        // Sample token from logits using real sampler
+        llama_token nextToken = llama_sampler_sample(smpl, m_ctx, -1);
+        llama_sampler_accept(smpl, nextToken);
 
         // Check for End-Of-Generation
-        if (llama_token_is_eog(m_model, nextToken) ||
-            nextToken == llama_token_eos(m_model) ||
-            nextToken == llama_token_eot(m_model)) {
+        if (llama_vocab_is_eog(m_vocab, nextToken)) {
+            LOGI("EOG token reached: %d", nextToken);
             break;
         }
 
         // Convert token to text piece
         std::memset(pieceBuf, 0, sizeof(pieceBuf));
-        int nPiece = llama_token_to_piece(m_model, nextToken, pieceBuf, sizeof(pieceBuf) - 1, 0, false);
+        int nPiece = llama_token_to_piece(m_vocab, nextToken, pieceBuf, sizeof(pieceBuf) - 1, 0, false);
         std::string pieceStr;
         if (nPiece > 0) {
             pieceStr = std::string(pieceBuf, nPiece);
@@ -274,7 +274,6 @@ bool LlamaEngine::generateCompletion(
         fullCompletion += pieceStr;
         completionTokens++;
 
-        // Stream token callback to UI / Ktor SSE
         if (callback.onToken) {
             callback.onToken(pieceStr);
         }
@@ -287,7 +286,6 @@ bool LlamaEngine::generateCompletion(
         batch.seq_id[0][0] = 0;
         batch.logits[0] = 1;
 
-        // Dynamic layer streaming: advise layer memory transition
         if (m_streamingExecution) {
             for (int l = 0; l < m_nLayers; ++l) {
                 MemoryManager::getInstance().adviseLayerActive(l);
@@ -302,6 +300,7 @@ bool LlamaEngine::generateCompletion(
         currentPos++;
     }
 
+    llama_sampler_free(smpl);
     llama_batch_free(batch);
 
     auto endTime = std::chrono::steady_clock::now();
@@ -332,18 +331,19 @@ void LlamaEngine::releaseModel() {
 
     MemoryManager::getInstance().unregisterMmapRegion();
 
-    if (m_ctx && m_ctx != reinterpret_cast<struct llama_context*>(0xCAFEBABE)) {
+    if (m_ctx) {
         llama_free(m_ctx);
     }
     m_ctx = nullptr;
 
-    if (m_model && m_model != reinterpret_cast<struct llama_model*>(0xDEADBEEF)) {
-        llama_free_model(m_model);
+    if (m_model) {
+        llama_model_free(m_model);
     }
     m_model = nullptr;
+    m_vocab = nullptr;
 
     m_isLoaded.store(false);
-    LOGI("Model and context released.");
+    LOGI("Real model and context released.");
 }
 
 bool LlamaEngine::isLoaded() const {

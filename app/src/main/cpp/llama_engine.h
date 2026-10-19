@@ -6,7 +6,7 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
-#include "include/llama.h"
+#include "llama.h"
 #include "memory_manager.h"
 
 namespace privtellm {
@@ -54,6 +54,8 @@ private:
 
     struct llama_model* m_model = nullptr;
     struct llama_context* m_ctx = nullptr;
+    const struct llama_vocab* m_vocab = nullptr;
+
 
     std::string m_modelPath;
     int m_nThreads = 4;

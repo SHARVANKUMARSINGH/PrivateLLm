@@ -243,6 +243,10 @@ class ModelDownloader(private val context: Context) {
     }
 
     fun getTargetFile(model: ModelItem): File {
+        if (!model.localFilePath.isNullOrEmpty()) {
+            val f = File(model.localFilePath)
+            if (f.exists()) return f
+        }
         val dir = ModelCatalog.getInternalModelDir(context)
         return File(dir, "${model.id}.gguf")
     }

@@ -44,9 +44,12 @@ import kotlinx.coroutines.withContext
 
 enum class MainTab(val title: String) {
     SERVER("Dashboard"),
-    MODELS("Model Store"),
-    CHAT("Playground")
+    MODELS("Models"),
+    CHAT("Playground"),
+    STUDIO("Studio"),
+    TERMINAL("Terminal")
 }
+
 
 class MainActivity : ComponentActivity() {
 
@@ -224,8 +227,37 @@ fun MainAppScreen(
                         indicatorColor = AccentBlueGlow
                     )
                 )
+
+                NavigationBarItem(
+                    selected = selectedTab == MainTab.STUDIO,
+                    onClick = { selectedTab = MainTab.STUDIO },
+                    icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Studio") },
+                    label = { Text("Studio", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = AccentBlue,
+                        selectedTextColor = AccentBlue,
+                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        indicatorColor = AccentBlueGlow
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == MainTab.TERMINAL,
+                    onClick = { selectedTab = MainTab.TERMINAL },
+                    icon = { Icon(Icons.Default.Terminal, contentDescription = "Terminal") },
+                    label = { Text("Terminal", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = AccentBlue,
+                        selectedTextColor = AccentBlue,
+                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        indicatorColor = AccentBlueGlow
+                    )
+                )
             }
         }
+
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -338,10 +370,19 @@ fun MainAppScreen(
                         loadedModel = loadedModel
                     )
                 }
+
+                MainTab.STUDIO -> {
+                    StudioScreen()
+                }
+
+                MainTab.TERMINAL -> {
+                    TerminalScreen()
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun DashboardScreen(

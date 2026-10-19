@@ -175,10 +175,11 @@ bool MemoryManager::maybePruneKvCache(
     int delta = -targetReductionTokens;
 
     // Remove KV cache range
-    llama_kv_cache_seq_rm(ctx, 0, p0, p1);
-
-    // Shift the remaining tokens in the sequence backwards
-    llama_kv_cache_seq_add(ctx, 0, p1, currentPos, delta);
+    llama_memory_t mem = llama_get_memory(ctx);
+    if (mem) {
+        llama_memory_seq_rm(mem, 0, p0, p1);
+        llama_memory_seq_add(mem, 0, p1, currentPos, delta);
+    }
 
     currentPos += delta;
 
