@@ -148,6 +148,30 @@ object ModelCatalog {
         }
     }
 
+    fun getAllModels(context: Context): List<ModelItem> {
+        val modelDir = getInternalModelDir(context)
+        val files = modelDir.listFiles { _, name -> name.endsWith(".gguf", ignoreCase = true) } ?: emptyArray()
+        val customModels = files.mapNotNull { file ->
+            val id = file.nameWithoutExtension.lowercase()
+            val isCurated = CURATED_MODELS.any { it.id.equals(id, ignoreCase = true) }
+            if (!isCurated) {
+                ModelItem(
+                    id = id,
+                    name = file.nameWithoutExtension.replace("_", " ").replace("-", " ").capitalizeWords(),
+                    description = "Custom uploaded GGUF model in app storage (${(file.length() / (1024 * 1024))} MB).",
+                    parametersBillion = 1.0f,
+                    quantization = "Custom GGUF",
+                    sizeBytes = file.length(),
+                    downloadUrl = "",
+                    status = DownloadStatus.DOWNLOADED,
+                    localFilePath = file.absolutePath,
+                    isCustom = true
+                )
+            } else null
+        }
+        return customModels + CURATED_MODELS
+    }
+
     private fun String.capitalizeWords(): String =
         split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
 

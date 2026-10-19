@@ -303,12 +303,29 @@ fun MainAppScreen(
 
                 MainTab.MODELS -> {
                     ModelCatalogScreen(
-                        models = ModelCatalog.CURATED_MODELS,
+                        models = ModelCatalog.getAllModels(context),
                         profiler = profiler,
                         downloader = downloader,
                         loadedModelId = loadedModel?.id,
                         onLoadModel = { modelToLoad ->
                             coroutineScope.launch {
+                                if (modelToLoad.capability == com.privtellm.hub.ModelCapability.TEXT_TO_SPEECH) {
+                                    loadedModel = modelToLoad
+                                    selectedTab = MainTab.STUDIO
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Activated ${modelToLoad.name} for Studio TTS", Toast.LENGTH_SHORT).show()
+                                    }
+                                    return@launch
+                                }
+                                if (modelToLoad.capability == com.privtellm.hub.ModelCapability.IMAGE_GENERATION) {
+                                    loadedModel = modelToLoad
+                                    selectedTab = MainTab.STUDIO
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Activated ${modelToLoad.name} for Image Studio", Toast.LENGTH_SHORT).show()
+                                    }
+                                    return@launch
+                                }
+
                                 val targetFile = downloader.getTargetFile(modelToLoad)
                                 if (targetFile.exists()) {
                                     downloader.setModelLoading(modelToLoad, true)
@@ -373,6 +390,9 @@ fun MainAppScreen(
                         },
                         onNavigateToChat = {
                             selectedTab = MainTab.CHAT
+                        },
+                        onNavigateToStudio = {
+                            selectedTab = MainTab.STUDIO
                         }
                     )
                 }
@@ -384,7 +404,7 @@ fun MainAppScreen(
                 }
 
                 MainTab.STUDIO -> {
-                    StudioScreen()
+                    StudioScreen(activeModel = loadedModel)
                 }
 
                 MainTab.TERMINAL -> {

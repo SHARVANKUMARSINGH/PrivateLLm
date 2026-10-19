@@ -39,7 +39,7 @@ class ModelDownloader(private val context: Context) {
         return _downloadStates.getOrPut(model.id) {
             val file = getTargetFile(model)
             val partFile = File(file.parentFile, "${file.name}.part")
-            val isComplete = file.exists() && file.length() > 50L * 1024 * 1024 && !partFile.exists()
+            val isComplete = file.exists() && file.length() > 512 * 1024 && !partFile.exists()
             val initialStatus = if (isComplete) {
                 DownloadStatus.DOWNLOADED
             } else if (partFile.exists() && partFile.length() > 0) {

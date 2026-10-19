@@ -10,11 +10,11 @@ on:
       release_tag:
         description: 'Release Tag (e.g. v1.0.0)'
         required: false
-        default: 'v1.2.0'
+        default: 'v1.3.0'
       release_title:
         description: 'Release Title'
         required: false
-        default: 'PrivteLLM v1.2.0 - Production On-Device LLM & Local OpenAI Server'
+        default: 'PrivteLLM v1.3.0 - Termux Bootstrap, Custom GGUF Import & Audio/Image Studio'
       publish_release:
         description: 'Publish APK to GitHub Releases'
         type: boolean
@@ -75,8 +75,8 @@ jobs:
             TAG="${GITHUB_REF#refs/tags/}"
             TITLE="PrivteLLM ${TAG} - Production On-Device LLM & Local OpenAI Server"
           else
-            TAG="v1.2.0"
-            TITLE="PrivteLLM v1.2.0 - Production On-Device LLM & Local OpenAI Server"
+            TAG="v1.3.0"
+            TITLE="PrivteLLM v1.3.0 - Termux Bootstrap, Custom GGUF Import & Audio/Image Studio"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT

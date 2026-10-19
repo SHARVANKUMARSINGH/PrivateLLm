@@ -54,6 +54,7 @@ fun ModelCatalogScreen(
     onLoadModel: (ModelItem) -> Unit,
     onUnloadModel: () -> Unit,
     onNavigateToChat: () -> Unit = {},
+    onNavigateToStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -63,11 +64,16 @@ fun ModelCatalogScreen(
     var selectedCategory by remember { mutableStateOf(ModelCategory.ALL) }
     val memorySnapshot = profiler.getMemorySnapshot()
 
+    var modelList by remember(models) { mutableStateOf(models) }
+    fun refreshModels() {
+        modelList = ModelCatalog.getAllModels(context)
+    }
+
     var isImporting by remember { mutableStateOf(false) }
     var importProgress by remember { mutableFloatStateOf(0f) }
 
     val customGgufPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
             isImporting = true
@@ -79,6 +85,7 @@ fun ModelCatalogScreen(
                 isImporting = false
                 result.onSuccess { imported ->
                     Toast.makeText(context, "Imported custom model: ${imported.name}", Toast.LENGTH_SHORT).show()
+                    refreshModels()
                     onLoadModel(imported)
                 }.onFailure { err ->
                     Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
@@ -87,8 +94,8 @@ fun ModelCatalogScreen(
         }
     }
 
-    val filteredModels = remember(models, searchQuery, selectedCategory, memorySnapshot) {
-        models.filter { model ->
+    val filteredModels = remember(modelList, searchQuery, selectedCategory, memorySnapshot) {
+        modelList.filter { model ->
             val matchesSearch = searchQuery.isBlank() ||
                     model.name.contains(searchQuery, ignoreCase = true) ||
                     model.quantization.contains(searchQuery, ignoreCase = true)
@@ -174,7 +181,7 @@ fun ModelCatalogScreen(
 
                     // Import Custom .GGUF Button
                     FilledTonalButton(
-                        onClick = { customGgufPicker.launch("*/*") },
+                        onClick = { customGgufPicker.launch(arrayOf("*/*", "application/octet-stream")) },
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
@@ -345,8 +352,12 @@ fun ModelCatalogScreen(
                 onPause = { downloader.pauseDownload(currentModel) },
                 onLoad = { onLoadModel(currentModel) },
                 onUnload = onUnloadModel,
-                onDelete = { downloader.deleteModel(currentModel) },
-                onChatNow = onNavigateToChat
+                onDelete = {
+                    downloader.deleteModel(currentModel)
+                    refreshModels()
+                },
+                onChatNow = onNavigateToChat,
+                onOpenStudio = onNavigateToStudio
             )
         }
     }
@@ -365,6 +376,7 @@ fun ModelCardItem(
     onUnload: () -> Unit,
     onDelete: () -> Unit,
     onChatNow: () -> Unit = {},
+    onOpenStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -705,15 +717,32 @@ fun ModelCardItem(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         if (isLoaded) {
+                            val isStudioModel = model.capability == ModelCapability.TEXT_TO_SPEECH || model.capability == ModelCapability.IMAGE_GENERATION
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    onClick = onChatNow,
-                                    shape = RoundedCornerShape(20.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Chat Now", style = MaterialTheme.typography.labelLarge)
+                                if (isStudioModel) {
+                                    Button(
+                                        onClick = onOpenStudio,
+                                        shape = RoundedCornerShape(20.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(
+                                            if (model.capability == ModelCapability.TEXT_TO_SPEECH) Icons.Default.VolumeUp else Icons.Default.Palette,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(if (model.capability == ModelCapability.TEXT_TO_SPEECH) "Speech Studio" else "Image Studio", style = MaterialTheme.typography.labelLarge)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = onChatNow,
+                                        shape = RoundedCornerShape(20.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Chat Now", style = MaterialTheme.typography.labelLarge)
+                                    }
                                 }
 
                                 OutlinedButton(
@@ -727,6 +756,17 @@ fun ModelCardItem(
                                 }
                             }
                         } else {
+                            val loadLabel = when (model.capability) {
+                                ModelCapability.TEXT_TO_SPEECH -> "Activate Voice"
+                                ModelCapability.IMAGE_GENERATION -> "Activate Diffusion"
+                                else -> "Load into RAM"
+                            }
+                            val loadIcon = when (model.capability) {
+                                ModelCapability.TEXT_TO_SPEECH -> Icons.Default.VolumeUp
+                                ModelCapability.IMAGE_GENERATION -> Icons.Default.Palette
+                                else -> Icons.Default.Bolt
+                            }
+
                             Button(
                                 onClick = onLoad,
                                 enabled = !model.isLoading,
@@ -742,9 +782,9 @@ fun ModelCardItem(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Loading...", style = MaterialTheme.typography.labelLarge)
                                 } else {
-                                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(loadIcon, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Load into RAM", style = MaterialTheme.typography.labelLarge)
+                                    Text(loadLabel, style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                         }
