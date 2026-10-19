@@ -275,6 +275,39 @@ object ModelCatalog {
             downloadUrl = "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
             contextLength = 8192,
             capability = ModelCapability.TEXT_LLM
+        ),
+        ModelItem(
+            id = "llama-3-8b-instruct-q4_k_m",
+            name = "Llama 3 8B Instruct",
+            description = "Top-tier 8B parameter capability with high nuance and structured JSON generation.",
+            parametersBillion = 8.0f,
+            quantization = "Q4_K_M",
+            sizeBytes = 4920L * 1024 * 1024,
+            downloadUrl = "https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf",
+            contextLength = 8192,
+            capability = ModelCapability.TEXT_LLM
+        ),
+        ModelItem(
+            id = "qwen2.5-14b-instruct-q4_k_m",
+            name = "Qwen 2.5 14B Instruct",
+            description = "Heavyweight 14B quantized model for high-RAM mobile workstations and flagship flagships.",
+            parametersBillion = 14.7f,
+            quantization = "Q4_K_M",
+            sizeBytes = 8988110976L,
+            downloadUrl = "https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf",
+            contextLength = 8192,
+            capability = ModelCapability.TEXT_LLM
+        ),
+        ModelItem(
+            id = "mixtral-8x7b-instruct-q3_k_m",
+            name = "Mixtral 8x7B MoE Instruct",
+            description = "Sparse Mixture-of-Experts activating ~19B parameters for advanced multi-domain mastery.",
+            parametersBillion = 19.5f,
+            quantization = "Q3_K_M",
+            sizeBytes = 13500L * 1024 * 1024,
+            downloadUrl = "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf",
+            contextLength = 8192,
+            capability = ModelCapability.TEXT_LLM
         )
     )
 }
