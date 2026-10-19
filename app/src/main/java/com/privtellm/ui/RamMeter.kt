@@ -5,7 +5,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +36,7 @@ fun RamMeter(
     memorySnapshot: MemorySnapshot,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val usedRatio = memorySnapshot.usedPercentage.coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = usedRatio,
@@ -45,24 +45,23 @@ fun RamMeter(
     )
 
     val (statusColor, statusText, statusBg) = when (memorySnapshot.pressure) {
-        MemoryPressure.NORMAL -> Triple(NeonGreen, "STABLE", NeonGreenGlow)
-        MemoryPressure.MODERATE -> Triple(AmberAccent, "HIGH PRESSURE", Color(0x33F59E0B))
-        MemoryPressure.CRITICAL -> Triple(CrimsonRed, "CRITICAL (<450MB)", CrimsonGlow)
+        MemoryPressure.NORMAL -> Triple(AccentBlue, "STABLE", AccentBlueGlow)
+        MemoryPressure.MODERATE -> Triple(StatusWarning, "HIGH PRESSURE", StatusWarningGlow)
+        MemoryPressure.CRITICAL -> Triple(StatusCritical, "CRITICAL (<450MB)", StatusCriticalGlow)
     }
 
     val animatedStatusColor by animateColorAsState(
         targetValue = statusColor,
-        animationSpec = tween(durationMillis = 400),
+        animationSpec = tween(durationMillis = 350),
         label = "StatusColor"
     )
 
-    // Pulse animation for critical memory
     val infiniteTransition = rememberInfiniteTransition(label = "RamPulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = LinearEasing),
+            animation = tween(600, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "CriticalPulse"
@@ -70,13 +69,13 @@ fun RamMeter(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = Brush.horizontalGradient(
                 listOf(
-                    animatedStatusColor.copy(alpha = if (memorySnapshot.pressure == MemoryPressure.CRITICAL) pulseAlpha else 0.6f),
-                    SpaceCardBorder
+                    animatedStatusColor.copy(alpha = if (memorySnapshot.pressure == MemoryPressure.CRITICAL) pulseAlpha else 0.5f),
+                    colorScheme.outline.copy(alpha = 0.6f)
                 )
             )
         )
@@ -86,7 +85,7 @@ fun RamMeter(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-            // Header Row: Telemetry Icon & Title & Pressure Badge
+            // Header Row: Profiler Icon & Pressure Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -97,13 +96,13 @@ fun RamMeter(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(animatedStatusColor.copy(alpha = 0.15f)),
+                            .background(AccentBlueGlow),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Memory,
                             contentDescription = "RAM Profiler",
-                            tint = animatedStatusColor,
+                            tint = AccentBlue,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -111,14 +110,14 @@ fun RamMeter(
                     Column {
                         Text(
                             text = "HARDWARE PROFILER",
-                            color = TextPrimary,
+                            color = colorScheme.onSurface,
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
                         )
                         Text(
-                            text = "Real-time RAM & OOM Guardrail",
-                            color = TextSecondary,
+                            text = "RAM & Safety Guardrail Monitor",
+                            color = colorScheme.onSurface.copy(alpha = 0.65f),
                             fontSize = 11.sp
                         )
                     }
@@ -160,32 +159,30 @@ fun RamMeter(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Gauge & Memory Numbers Row
+            // Gauge & Memory Numbers
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circular Semi-Arc Meter
+                // Circular Semi-Arc Gauge
                 Box(
                     modifier = Modifier
-                        .size(90.dp)
+                        .size(86.dp)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val strokeWidth = 8.dp.toPx()
-                        // Background Track
                         drawArc(
-                            color = SpaceSurfaceVariant,
+                            color = colorScheme.surfaceVariant,
                             startAngle = 135f,
                             sweepAngle = 270f,
                             useCenter = false,
                             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                         )
-                        // Progress Arc
                         drawArc(
                             brush = Brush.sweepGradient(
-                                listOf(ElectricCyan, animatedStatusColor)
+                                listOf(AccentBlueLight, animatedStatusColor)
                             ),
                             startAngle = 135f,
                             sweepAngle = 270f * animatedProgress,
@@ -197,14 +194,14 @@ fun RamMeter(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "${(usedRatio * 100).toInt()}%",
-                            color = TextPrimary,
+                            color = colorScheme.onSurface,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
                             text = "USED",
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -220,10 +217,10 @@ fun RamMeter(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("Total RAM", color = TextSecondary, fontSize = 11.sp)
+                            Text("Total RAM", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                             Text(
                                 text = "${String.format("%.1f", memorySnapshot.totalRamGb)} GB",
-                                color = TextPrimary,
+                                color = colorScheme.onSurface,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -231,7 +228,7 @@ fun RamMeter(
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("Free RAM", color = TextSecondary, fontSize = 11.sp)
+                            Text("Free RAM", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                             Text(
                                 text = "${memorySnapshot.availableRamMb} MB",
                                 color = animatedStatusColor,
@@ -249,20 +246,20 @@ fun RamMeter(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("Resident (Used)", color = TextSecondary, fontSize = 11.sp)
+                            Text("Resident (Used)", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                             Text(
                                 text = "${memorySnapshot.usedRamMb} MB",
-                                color = TextPrimary,
+                                color = colorScheme.onSurface,
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("Safety Limit", color = TextSecondary, fontSize = 11.sp)
+                            Text("Safety Limit", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                             Text(
                                 text = "450 MB",
-                                color = CrimsonRed,
+                                color = StatusCritical,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -274,14 +271,14 @@ fun RamMeter(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Linear Progress Bar with 450 MB Threshold Mark
+            // Linear Progress Bar with 450 MB Threshold Marker
             Column {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(SpaceSurfaceVariant)
+                        .background(colorScheme.surfaceVariant)
                 ) {
                     Box(
                         modifier = Modifier
@@ -290,12 +287,12 @@ fun RamMeter(
                             .clip(RoundedCornerShape(4.dp))
                             .background(
                                 Brush.horizontalGradient(
-                                    listOf(ElectricCyan, animatedStatusColor)
+                                    listOf(AccentBlueLight, animatedStatusColor)
                                 )
                             )
                     )
 
-                    // 450 MB Safety line visual marker
+                    // 450 MB Safety Guardrail line marker
                     val safetyRatio = (1f - (450f / memorySnapshot.totalRamMb.coerceAtLeast(1024L))).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
@@ -303,7 +300,7 @@ fun RamMeter(
                             .width(2.dp)
                             .align(Alignment.CenterStart)
                             .offset(x = (safetyRatio * 280).dp)
-                            .background(CrimsonRed)
+                            .background(StatusCritical)
                     )
                 }
 
@@ -313,44 +310,40 @@ fun RamMeter(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("0 MB", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                    Text("▲ 450MB Safety Guardrail", color = CrimsonRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("${memorySnapshot.totalRamMb} MB", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    Text("0 MB", color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                    Text("▲ 450MB Safety Guardrail", color = StatusCritical, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("${memorySnapshot.totalRamMb} MB", color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Hardware Recommendation Tier Banner
-            val (tierTitle, tierDesc, tierIconColor) = when (memorySnapshot.tier) {
-                MemoryTier.TIER_SUB_4GB -> Triple(
+            val (tierTitle, tierDesc) = when (memorySnapshot.tier) {
+                MemoryTier.TIER_SUB_4GB -> Pair(
                     "Compact Tier (< 4GB RAM)",
-                    "Best for ≤1B models (Qwen-0.5B, SmolLM). Low footprint.",
-                    ElectricCyan
+                    "Best for ≤1B models (Qwen-0.5B, SmolLM). Lightweight."
                 )
-                MemoryTier.TIER_4GB_TO_6GB -> Triple(
+                MemoryTier.TIER_4GB_TO_6GB -> Pair(
                     "Balanced Tier (4 – 6GB RAM)",
-                    "Optimal for 1B–3B models with hybrid mmap streaming active.",
-                    NeonGreen
+                    "Optimal for 1B–3B models with hybrid mmap streaming active."
                 )
-                MemoryTier.TIER_8GB_TO_12GB -> Triple(
+                MemoryTier.TIER_8GB_TO_12GB -> Pair(
                     "High Performance Tier (8 – 12GB RAM)",
-                    "Full-speed 7B–8B 4-bit (Q4_K_M) execution with fast KV cache.",
-                    PurpleAccent
+                    "Full-speed 7B–8B 4-bit (Q4_K_M) execution with fast KV cache."
                 )
-                MemoryTier.TIER_16GB_PLUS -> Triple(
+                MemoryTier.TIER_16GB_PLUS -> Pair(
                     "Workstation Tier (≥ 16GB RAM)",
-                    "High reasoning capacity for 14B–20B quantized models.",
-                    AmberAccent
+                    "High capability for 14B–20B quantized models."
                 )
             }
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                color = SpaceBackground,
+                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
                 border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(listOf(tierIconColor.copy(alpha = 0.4f), SpaceCardBorder))
+                    brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f)))
                 )
             ) {
                 Row(
@@ -361,13 +354,13 @@ fun RamMeter(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(CircleShape)
-                            .background(tierIconColor.copy(alpha = 0.15f)),
+                            .background(AccentBlueGlow),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            tint = tierIconColor,
+                            tint = AccentBlue,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -377,27 +370,27 @@ fun RamMeter(
                     Column {
                         Text(
                             text = tierTitle,
-                            color = tierIconColor,
+                            color = AccentBlue,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = tierDesc,
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.75f),
                             fontSize = 10.sp
                         )
                     }
                 }
             }
 
-            // Warning banner if free RAM is tight
+            // Warning banner if free RAM is under threshold
             AnimatedVisibility(visible = memorySnapshot.pressure != MemoryPressure.NORMAL) {
                 Column {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        color = animatedStatusColor.copy(alpha = 0.1f)
+                        color = animatedStatusColor.copy(alpha = 0.12f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

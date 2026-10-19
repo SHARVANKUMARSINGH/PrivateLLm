@@ -3,7 +3,6 @@ package com.privtellm.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +48,7 @@ fun ModelCatalogScreen(
     onUnloadModel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(ModelCategory.ALL) }
     val memorySnapshot = profiler.getMemorySnapshot()
@@ -78,12 +78,12 @@ fun ModelCatalogScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(SpaceBackground)
+            .background(colorScheme.background)
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 28.dp)
     ) {
-        // Hub Banner
+        // Hub Banner & Search
         item {
             Column {
                 Row(
@@ -93,30 +93,30 @@ fun ModelCatalogScreen(
                 ) {
                     Column {
                         Text(
-                            text = "QUANTIZED MODEL HUB",
-                            color = NeonGreen,
+                            text = "QUANTIZED MODEL STORE",
+                            color = AccentBlue,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
                         )
                         Text(
-                            text = "GGUF Model Store (0.5B – 20B)",
-                            color = TextPrimary,
+                            text = "Local GGUF Models (0.5B – 20B)",
+                            color = colorScheme.onBackground,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = SpaceSurfaceVariant,
+                        shape = RoundedCornerShape(10.dp),
+                        color = colorScheme.surfaceVariant,
                         border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+                            brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f)))
                         )
                     ) {
                         Text(
-                            text = "${models.size} Models",
-                            color = TextSecondary,
+                            text = "${models.size} Available",
+                            color = colorScheme.onSurface.copy(alpha = 0.7f),
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -130,12 +130,30 @@ fun ModelCatalogScreen(
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search by name, quant (Q4_K_M), or size...", color = TextMuted, fontSize = 13.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp)) },
+                    placeholder = {
+                        Text(
+                            "Search model by name or quant (Q4_K_M)...",
+                            color = colorScheme.onSurface.copy(alpha = 0.45f),
+                            fontSize = 13.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = AccentBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = colorScheme.onSurface.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     },
@@ -143,12 +161,12 @@ fun ModelCatalogScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp)),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = SpaceSurface,
-                        unfocusedContainerColor = SpaceSurface,
+                        focusedContainerColor = colorScheme.surface,
+                        unfocusedContainerColor = colorScheme.surface,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedTextColor = colorScheme.onSurface,
+                        unfocusedTextColor = colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -162,18 +180,19 @@ fun ModelCatalogScreen(
                     items(ModelCategory.values()) { category ->
                         val isSelected = (selectedCategory == category)
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) NeonGreenGlow else SpaceSurface,
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isSelected) AccentBlue else colorScheme.surface,
                             border = CardDefaults.outlinedCardBorder().copy(
                                 brush = Brush.horizontalGradient(
-                                    if (isSelected) listOf(NeonGreen, NeonGreen) else listOf(SpaceCardBorder, SpaceCardBorder)
+                                    if (isSelected) listOf(AccentBlue, AccentBlue)
+                                    else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
                                 )
                             ),
                             modifier = Modifier.clickable { selectedCategory = category }
                         ) {
                             Text(
                                 text = category.label,
-                                color = if (isSelected) NeonGreen else TextSecondary,
+                                color = if (isSelected) Color.White else colorScheme.onSurface.copy(alpha = 0.75f),
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -191,10 +210,10 @@ fun ModelCatalogScreen(
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = NeonGreenGlow,
+                        shape = RoundedCornerShape(12.dp),
+                        color = AccentBlueGlow,
                         border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.horizontalGradient(listOf(NeonGreen, NeonGreen.copy(alpha = 0.3f)))
+                            brush = Brush.horizontalGradient(listOf(AccentBlue, AccentBlue.copy(alpha = 0.4f)))
                         )
                     ) {
                         Row(
@@ -209,25 +228,25 @@ fun ModelCatalogScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(NeonGreen)
+                                        .background(AccentBlue)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
-                                    Text("ACTIVE ENGINE IN RAM", color = NeonGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text(activeModel.name, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text("ACTIVE ENGINE IN RAM", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(activeModel.name, color = colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
                             OutlinedButton(
                                 onClick = onUnloadModel,
                                 shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberAccent),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.horizontalGradient(listOf(AmberAccent, AmberAccent.copy(alpha = 0.5f)))
+                                    brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
                                 ),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text("Unload", fontSize = 11.sp)
+                                Text("Unload", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -243,7 +262,7 @@ fun ModelCatalogScreen(
             val currentModel by modelStateFlow.collectAsState()
             val isLoaded = (loadedModelId == currentModel.id)
 
-            UltraModelCard(
+            ModelCardItem(
                 model = currentModel,
                 isRecommended = isRecommended,
                 recommendationDetails = recommendationDetails,
@@ -260,7 +279,7 @@ fun ModelCatalogScreen(
 }
 
 @Composable
-fun UltraModelCard(
+fun ModelCardItem(
     model: ModelItem,
     isRecommended: Boolean,
     recommendationDetails: String,
@@ -273,27 +292,27 @@ fun UltraModelCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val borderColor = when {
-        isLoaded -> NeonGreen
-        isRecommended -> ElectricCyan
-        else -> SpaceCardBorder
+        isLoaded -> AccentBlue
+        isRecommended -> AccentBlue
+        else -> colorScheme.outline.copy(alpha = 0.45f)
     }
 
-    // Memory requirement safety check
-    val estimatedRamMb = (model.sizeBytes / (1024 * 1024)) + 400L // model weights + 400MB context
+    val estimatedRamMb = (model.sizeBytes / (1024 * 1024)) + 400L
     val (ramCheckColor, ramCheckLabel) = when {
-        estimatedRamMb <= freeRamMb - 300 -> Pair(NeonGreen, "SAFE FIT")
-        estimatedRamMb <= freeRamMb -> Pair(AmberAccent, "TIGHT FIT")
-        else -> Pair(CrimsonRed, "HIGH OOM RISK")
+        estimatedRamMb <= freeRamMb - 300 -> Pair(AccentBlue, "SAFE FIT")
+        estimatedRamMb <= freeRamMb -> Pair(StatusWarning, "TIGHT FIT")
+        else -> Pair(StatusCritical, "HIGH OOM RISK")
     }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = Brush.horizontalGradient(
-                listOf(borderColor.copy(alpha = if (isLoaded) 0.9f else 0.5f), SpaceCardBorder)
+                listOf(borderColor.copy(alpha = if (isLoaded) 0.9f else 0.5f), colorScheme.outline.copy(alpha = 0.3f))
             )
         )
     ) {
@@ -311,14 +330,14 @@ fun UltraModelCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = model.name,
-                        color = TextPrimary,
+                        color = colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "${model.parametersBillion}B params • ${model.quantization} • ${model.sizeFormatted}",
-                        color = TextSecondary,
+                        color = colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -326,10 +345,10 @@ fun UltraModelCard(
 
                 if (isLoaded) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = NeonGreenGlow,
+                        shape = RoundedCornerShape(6.dp),
+                        color = AccentBlueGlow,
                         border = CardDefaults.outlinedCardBorder().copy(
-                            brush = Brush.linearGradient(listOf(NeonGreen, NeonGreen))
+                            brush = Brush.linearGradient(listOf(AccentBlue, AccentBlue))
                         )
                     ) {
                         Row(
@@ -340,12 +359,12 @@ fun UltraModelCard(
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(NeonGreen)
+                                    .background(AccentBlue)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "ACTIVE ENGINE",
-                                color = NeonGreen,
+                                text = "ACTIVE",
+                                color = AccentBlue,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -359,21 +378,21 @@ fun UltraModelCard(
             if (isRecommended) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = NeonGreen.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp),
+                    color = AccentBlueGlow,
                     border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(NeonGreen, NeonGreen.copy(alpha = 0.3f)))
+                        brush = Brush.horizontalGradient(listOf(AccentBlue, AccentBlue.copy(alpha = 0.4f)))
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "★ [RECOMMENDED FOR YOUR DEVICE]",
-                            color = NeonGreen,
+                            color = AccentBlue,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 0.5.sp
                         )
@@ -383,10 +402,10 @@ fun UltraModelCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Model Description / Recommendation Rationale
+            // Description / Recommendation Details
             Text(
                 text = if (isRecommended) recommendationDetails else model.description,
-                color = if (isRecommended) TextPrimary else TextSecondary,
+                color = if (isRecommended) colorScheme.onSurface else colorScheme.onSurface.copy(alpha = 0.75f),
                 fontSize = 12.sp,
                 lineHeight = 17.sp
             )
@@ -399,15 +418,14 @@ fun UltraModelCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Technical Tag Pills
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = SpaceSurfaceVariant
+                        color = colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = "${model.contextLength} ctx",
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.7f),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -416,11 +434,11 @@ fun UltraModelCard(
 
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = SpaceSurfaceVariant
+                        color = colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = model.quantization,
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.7f),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -428,13 +446,12 @@ fun UltraModelCard(
                     }
                 }
 
-                // RAM Footprint indicator
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = ramCheckColor.copy(alpha = 0.1f)
+                    color = ramCheckColor.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        text = "● $ramCheckLabel (~${estimatedRamMb}MB RAM)",
+                        text = "● $ramCheckLabel (~${estimatedRamMb}MB)",
                         color = ramCheckColor,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -456,7 +473,7 @@ fun UltraModelCard(
                             text = if (model.status == DownloadStatus.DOWNLOADING)
                                 "Downloading (${String.format("%.1f", model.downloadProgress * 100)}%)"
                             else "Paused",
-                            color = ElectricCyan,
+                            color = AccentBlue,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -464,7 +481,7 @@ fun UltraModelCard(
                             text = if (model.downloadSpeedMb > 0)
                                 "${String.format("%.1f", model.downloadSpeedMb)} MB/s"
                             else "-- MB/s",
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f),
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace
                         )
@@ -478,8 +495,8 @@ fun UltraModelCard(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = ElectricCyan,
-                        trackColor = SpaceSurfaceVariant
+                        color = AccentBlue,
+                        trackColor = colorScheme.surfaceVariant
                     )
                 }
             }
@@ -487,15 +504,15 @@ fun UltraModelCard(
             if (model.status == DownloadStatus.VERIFYING) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AmberAccent)
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AccentBlue)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verifying SHA-256 integrity hash...", color = AmberAccent, fontSize = 11.sp)
+                    Text("Verifying SHA-256 integrity hash...", color = AccentBlue, fontSize = 11.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons Row
+            // Action Buttons Row with #007ACC
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -505,18 +522,18 @@ fun UltraModelCard(
                     DownloadStatus.NOT_DOWNLOADED, DownloadStatus.ERROR -> {
                         Button(
                             onClick = onDownload,
-                            colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 7.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
                                 contentDescription = null,
-                                tint = SpaceBackground,
+                                tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Download GGUF", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Download GGUF", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -524,7 +541,7 @@ fun UltraModelCard(
                         OutlinedButton(
                             onClick = onPause,
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ElectricCyan),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -536,19 +553,17 @@ fun UltraModelCard(
                     DownloadStatus.PAUSED -> {
                         Button(
                             onClick = onDownload,
-                            colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = SpaceBackground, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Resume", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Resume", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    DownloadStatus.VERIFYING -> {
-                        // In verification
-                    }
+                    DownloadStatus.VERIFYING -> {}
 
                     DownloadStatus.DOWNLOADED, DownloadStatus.LOADED -> {
                         IconButton(
@@ -558,7 +573,7 @@ fun UltraModelCard(
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
                                 contentDescription = "Delete Model",
-                                tint = TextMuted,
+                                tint = colorScheme.onSurface.copy(alpha = 0.5f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -569,9 +584,9 @@ fun UltraModelCard(
                             OutlinedButton(
                                 onClick = onUnload,
                                 shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberAccent),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.horizontalGradient(listOf(AmberAccent, AmberAccent.copy(alpha = 0.5f)))
+                                    brush = Brush.horizontalGradient(listOf(StatusWarning, StatusWarning.copy(alpha = 0.5f)))
                                 ),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                             ) {
@@ -580,7 +595,7 @@ fun UltraModelCard(
                         } else {
                             Button(
                                 onClick = onLoad,
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 7.dp)
                             ) {
@@ -588,10 +603,10 @@ fun UltraModelCard(
                                     imageVector = Icons.Default.Bolt,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = SpaceBackground
+                                    tint = Color.White
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Load Engine", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("Load Engine", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

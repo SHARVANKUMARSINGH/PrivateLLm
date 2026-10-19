@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -37,16 +36,17 @@ fun ServerStatusCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
     val isRunning = serverState.status == ServerStatus.RUNNING
     var testResult by remember { mutableStateOf<String?>(null) }
 
-    // Pulse animation for active server & streaming radar
+    // Pulse animation for active server & inference indicator
     val infiniteTransition = rememberInfiniteTransition(label = "ServerRadar")
     val radarPulse by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
+        initialValue = 0.35f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = FastOutSlowInEasing),
+            animation = tween(650, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "RadarAlpha"
@@ -54,14 +54,14 @@ fun ServerStatusCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = Brush.horizontalGradient(
                 if (isRunning)
-                    listOf(NeonGreen.copy(alpha = 0.7f), SpaceCardBorder)
+                    listOf(AccentBlue.copy(alpha = 0.8f), colorScheme.outline.copy(alpha = 0.5f))
                 else
-                    listOf(SpaceCardBorder, SpaceCardBorder)
+                    listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f))
             )
         )
     ) {
@@ -81,13 +81,13 @@ fun ServerStatusCard(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isRunning) NeonGreenGlow else SpaceSurfaceVariant),
+                            .background(if (isRunning) AccentBlueGlow else colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Dns,
                             contentDescription = "OpenAI API Server",
-                            tint = if (isRunning) NeonGreen else TextSecondary,
+                            tint = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -97,39 +97,39 @@ fun ServerStatusCard(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "OPENAI LOCAL SERVER",
-                                color = TextPrimary,
+                                text = "LOCAL OPENAI SERVER",
+                                color = colorScheme.onSurface,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.2.sp
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
                             )
                             if (isRunning) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
-                                        .size(6.dp)
+                                        .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(NeonGreen.copy(alpha = radarPulse))
+                                        .background(AccentBlue.copy(alpha = radarPulse))
                                 )
                             }
                         }
                         Text(
-                            text = if (isRunning) "CIO Embedded Engine • Port ${serverState.port}" else "Offline / Service Stopped",
-                            color = if (isRunning) NeonGreenDim else TextMuted,
+                            text = if (isRunning) "Listening on http://0.0.0.0:${serverState.port}" else "Service Offline",
+                            color = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
                             fontSize = 11.sp
                         )
                     }
                 }
 
-                // High-contrast neon Switch
+                // Switch styled with #007ACC
                 Switch(
                     checked = isRunning,
                     onCheckedChange = { onToggleServer(it) },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = SpaceBackground,
-                        checkedTrackColor = NeonGreen,
-                        uncheckedThumbColor = TextMuted,
-                        uncheckedTrackColor = SpaceSurfaceVariant
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = AccentBlue,
+                        uncheckedThumbColor = colorScheme.onSurface.copy(alpha = 0.4f),
+                        uncheckedTrackColor = colorScheme.surfaceVariant
                     )
                 )
             }
@@ -144,12 +144,12 @@ fun ServerStatusCard(
                         val endpoint = "http://${serverState.localIp}:${serverState.port}"
                         copyToClipboard(context, "API Endpoint", endpoint)
                     },
-                shape = RoundedCornerShape(12.dp),
-                color = SpaceBackground,
+                shape = RoundedCornerShape(10.dp),
+                color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
                 border = CardDefaults.outlinedCardBorder().copy(
                     brush = Brush.horizontalGradient(
-                        if (isRunning) listOf(NeonGreen.copy(alpha = 0.3f), SpaceCardBorder)
-                        else listOf(SpaceCardBorder, SpaceCardBorder)
+                        if (isRunning) listOf(AccentBlue.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.3f))
+                        else listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
                     )
                 )
             ) {
@@ -163,12 +163,12 @@ fun ServerStatusCard(
                     Column {
                         Text(
                             text = if (isRunning) "LAN Accessible Endpoint" else "Server Inactive",
-                            color = TextSecondary,
+                            color = colorScheme.onSurface.copy(alpha = 0.55f),
                             fontSize = 10.sp
                         )
                         Text(
                             text = "http://${serverState.localIp}:${serverState.port}",
-                            color = if (isRunning) ElectricCyan else TextMuted,
+                            color = if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.45f),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
@@ -177,7 +177,7 @@ fun ServerStatusCard(
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = SpaceSurfaceVariant
+                        color = colorScheme.surface
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -186,13 +186,13 @@ fun ServerStatusCard(
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
                                 contentDescription = "Copy",
-                                tint = TextSecondary,
+                                tint = colorScheme.onSurface.copy(alpha = 0.65f),
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "COPY",
-                                color = TextSecondary,
+                                color = colorScheme.onSurface.copy(alpha = 0.65f),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -213,20 +213,20 @@ fun ServerStatusCard(
                 ServerMetricTile(
                     label = "TOTAL CALLS",
                     value = "${serverState.totalRequests}",
-                    accentColor = ElectricCyan
+                    accentColor = AccentBlue
                 )
 
                 ServerMetricTile(
                     label = "TOKENS STREAMED",
                     value = "${serverState.totalTokens}",
-                    accentColor = PurpleAccent
+                    accentColor = AccentBlueLight
                 )
 
                 // Engine State Pill
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "ENGINE STATE",
-                        color = TextSecondary,
+                        color = colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
@@ -234,7 +234,7 @@ fun ServerStatusCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (serverState.isInferring) CrimsonGlow else SpaceSurfaceVariant
+                        color = if (serverState.isInferring) StatusCriticalGlow else colorScheme.surfaceVariant
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -245,15 +245,15 @@ fun ServerStatusCard(
                                     .size(6.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (serverState.isInferring) CrimsonRed
-                                        else if (isRunning) NeonGreen
-                                        else TextMuted
+                                        if (serverState.isInferring) StatusCritical
+                                        else if (isRunning) AccentBlue
+                                        else colorScheme.onSurface.copy(alpha = 0.4f)
                                     )
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = if (serverState.isInferring) "STREAMING" else if (isRunning) "IDLE" else "STOPPED",
-                                color = if (serverState.isInferring) CrimsonRed else if (isRunning) NeonGreen else TextMuted,
+                                color = if (serverState.isInferring) StatusCritical else if (isRunning) AccentBlue else colorScheme.onSurface.copy(alpha = 0.45f),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -281,12 +281,12 @@ fun ServerStatusCard(
                                 copyToClipboard(context, "OpenAI cURL Command", curl)
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = ElectricCyan
+                                contentColor = AccentBlue
                             ),
                             border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(ElectricCyan.copy(alpha = 0.5f), ElectricCyan.copy(alpha = 0.2f)))
+                                brush = Brush.horizontalGradient(listOf(AccentBlue.copy(alpha = 0.6f), AccentBlue.copy(alpha = 0.3f)))
                             ),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
@@ -300,16 +300,16 @@ fun ServerStatusCard(
                                 testResult = "✓ Endpoint http://${serverState.localIp}:${serverState.port}/ ready (Latency: 4ms)"
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = SpaceSurfaceVariant,
-                                contentColor = TextPrimary
+                                containerColor = AccentBlue,
+                                contentColor = Color.White
                             ),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
                             Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Ping Server", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Ping Server", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -317,7 +317,7 @@ fun ServerStatusCard(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = msg,
-                            color = NeonGreen,
+                            color = AccentBlue,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace
                         )
@@ -330,10 +330,11 @@ fun ServerStatusCard(
 
 @Composable
 private fun ServerMetricTile(label: String, value: String, accentColor: Color) {
+    val colorScheme = MaterialTheme.colorScheme
     Column {
         Text(
             text = label,
-            color = TextSecondary,
+            color = colorScheme.onSurface.copy(alpha = 0.6f),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp

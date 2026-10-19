@@ -96,6 +96,7 @@ fun MainAppScreen(
     onStartServer: () -> Unit,
     onStopServer: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var selectedTab by remember { mutableStateOf(MainTab.SERVER) }
     val memorySnapshot by profiler.monitorMemory(intervalMs = 1000)
         .collectAsState(initial = profiler.getMemorySnapshot())
@@ -116,19 +117,19 @@ fun MainAppScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "PrivteLLM",
-                                color = NeonGreen,
-                                fontWeight = FontWeight.ExtraBold,
+                                color = AccentBlue,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 21.sp,
                                 letterSpacing = 0.5.sp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = ElectricCyan.copy(alpha = 0.15f)
+                                shape = RoundedCornerShape(4.dp),
+                                color = AccentBlueGlow
                             ) {
                                 Text(
                                     text = "v1.0.0",
-                                    color = ElectricCyan,
+                                    color = AccentBlue,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
@@ -139,10 +140,10 @@ fun MainAppScreen(
 
                         // Memory Header Pill
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SpaceSurfaceVariant,
+                            shape = RoundedCornerShape(10.dp),
+                            color = colorScheme.surfaceVariant,
                             border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+                                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.5f), colorScheme.outline.copy(alpha = 0.5f)))
                             ),
                             modifier = Modifier.padding(end = 12.dp)
                         ) {
@@ -154,12 +155,12 @@ fun MainAppScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(if (memorySnapshot.availableRamMb < 450) CrimsonRed else NeonGreen)
+                                        .background(if (memorySnapshot.availableRamMb < 450) StatusCritical else AccentBlue)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "${memorySnapshot.availableRamMb} MB Free",
-                                    color = TextPrimary,
+                                    color = colorScheme.onSurface,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace
@@ -169,15 +170,15 @@ fun MainAppScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SpaceBackground,
-                    titleContentColor = TextPrimary
+                    containerColor = colorScheme.background,
+                    titleContentColor = colorScheme.onBackground
                 )
             )
         },
         bottomBar = {
             NavigationBar(
-                containerColor = SpaceSurface,
-                contentColor = TextPrimary
+                containerColor = colorScheme.surface,
+                contentColor = colorScheme.onSurface
             ) {
                 NavigationBarItem(
                     selected = selectedTab == MainTab.SERVER,
@@ -185,11 +186,11 @@ fun MainAppScreen(
                     icon = { Icon(Icons.Default.Dns, contentDescription = "Dashboard") },
                     label = { Text("Dashboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = NeonGreen,
-                        selectedTextColor = NeonGreen,
-                        unselectedIconColor = TextSecondary,
-                        unselectedTextColor = TextSecondary,
-                        indicatorColor = NeonGreenGlow
+                        selectedIconColor = AccentBlue,
+                        selectedTextColor = AccentBlue,
+                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        indicatorColor = AccentBlueGlow
                     )
                 )
 
@@ -199,11 +200,11 @@ fun MainAppScreen(
                     icon = { Icon(Icons.Default.Store, contentDescription = "Model Store") },
                     label = { Text("Model Store", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = TextSecondary,
-                        unselectedTextColor = TextSecondary,
-                        indicatorColor = ElectricCyanGlow
+                        selectedIconColor = AccentBlue,
+                        selectedTextColor = AccentBlue,
+                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        indicatorColor = AccentBlueGlow
                     )
                 )
 
@@ -213,11 +214,11 @@ fun MainAppScreen(
                     icon = { Icon(Icons.Default.Chat, contentDescription = "Playground") },
                     label = { Text("Playground", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = PurpleAccent,
-                        selectedTextColor = PurpleAccent,
-                        unselectedIconColor = TextSecondary,
-                        unselectedTextColor = TextSecondary,
-                        indicatorColor = Color(0x338B5CF6)
+                        selectedIconColor = AccentBlue,
+                        selectedTextColor = AccentBlue,
+                        unselectedIconColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        unselectedTextColor = colorScheme.onSurface.copy(alpha = 0.55f),
+                        indicatorColor = AccentBlueGlow
                     )
                 )
             }
@@ -227,7 +228,7 @@ fun MainAppScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(SpaceBackground)
+                .background(colorScheme.background)
         ) {
             when (selectedTab) {
                 MainTab.SERVER -> {
@@ -307,6 +308,8 @@ fun DashboardScreen(
     onUnloadModel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -323,17 +326,17 @@ fun DashboardScreen(
             onToggleServer = onToggleServer
         )
 
-        // 3. Active Loaded Model HUD Card
+        // 3. Active Loaded Model Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
             border = CardDefaults.outlinedCardBorder().copy(
                 brush = Brush.horizontalGradient(
                     if (loadedModel != null)
-                        listOf(NeonGreen.copy(alpha = 0.6f), SpaceCardBorder)
+                        listOf(AccentBlue.copy(alpha = 0.6f), colorScheme.outline.copy(alpha = 0.4f))
                     else
-                        listOf(SpaceCardBorder, SpaceCardBorder)
+                        listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f))
                 )
             )
         ) {
@@ -352,13 +355,13 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (loadedModel != null) NeonGreenGlow else SpaceSurfaceVariant),
+                                .background(if (loadedModel != null) AccentBlueGlow else colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Bolt,
                                 contentDescription = "Active Engine",
-                                tint = if (loadedModel != null) NeonGreen else TextSecondary,
+                                tint = if (loadedModel != null) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -368,14 +371,14 @@ fun DashboardScreen(
                         Column {
                             Text(
                                 text = "ACTIVE INFERENCE ENGINE",
-                                color = TextPrimary,
+                                color = colorScheme.onSurface,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.2.sp
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
                             )
                             Text(
                                 text = if (loadedModel != null) "C++20 NDK Tensor Pipeline Active" else "No Weights Loaded in RAM",
-                                color = if (loadedModel != null) NeonGreenDim else TextMuted,
+                                color = if (loadedModel != null) AccentBlue else colorScheme.onSurface.copy(alpha = 0.5f),
                                 fontSize = 11.sp
                             )
                         }
@@ -383,12 +386,12 @@ fun DashboardScreen(
 
                     if (loadedModel != null) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = NeonGreenGlow
+                            shape = RoundedCornerShape(6.dp),
+                            color = AccentBlueGlow
                         ) {
                             Text(
                                 text = "PRIME",
-                                color = NeonGreen,
+                                color = AccentBlue,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
@@ -403,14 +406,14 @@ fun DashboardScreen(
                 if (loadedModel != null) {
                     Text(
                         text = loadedModel.name,
-                        color = TextPrimary,
+                        color = colorScheme.onSurface,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${loadedModel.parametersBillion}B params • ${loadedModel.quantization} • ${loadedModel.contextLength} context window • ${loadedModel.sizeFormatted}",
-                        color = TextSecondary,
+                        color = colorScheme.onSurface.copy(alpha = 0.65f),
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -424,22 +427,22 @@ fun DashboardScreen(
                         Button(
                             onClick = onNavigateToChat,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, tint = SpaceBackground, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Open in Chat", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Open in Chat", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
                             onClick = onUnloadModel,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberAccent),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusWarning),
                             border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(AmberAccent.copy(alpha = 0.6f), AmberAccent.copy(alpha = 0.2f)))
+                                brush = Brush.horizontalGradient(listOf(StatusWarning.copy(alpha = 0.6f), StatusWarning.copy(alpha = 0.2f)))
                             ),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
@@ -449,7 +452,7 @@ fun DashboardScreen(
                 } else {
                     Text(
                         text = "Native RAM is currently cleared. Download and load a quantized model from the Model Store to start local inference.",
-                        color = TextSecondary,
+                        color = colorScheme.onSurface.copy(alpha = 0.7f),
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     )
@@ -458,25 +461,25 @@ fun DashboardScreen(
 
                     Button(
                         onClick = onNavigateToModels,
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
-                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                        shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Icon(Icons.Default.Store, contentDescription = null, tint = SpaceBackground, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Store, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Browse Curated Models", color = SpaceBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Browse Curated Models", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // 4. Hardware System Specifications Card
+        // 4. Runtime Specifications Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceSurface),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
             border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(SpaceCardBorder, SpaceCardBorder))
+                brush = Brush.horizontalGradient(listOf(colorScheme.outline.copy(alpha = 0.4f), colorScheme.outline.copy(alpha = 0.4f)))
             )
         ) {
             Column(
@@ -485,8 +488,8 @@ fun DashboardScreen(
                     .padding(18.dp)
             ) {
                 Text(
-                    text = "ACCELERATION & RUNTIME SPECS",
-                    color = TextSecondary,
+                    text = "RUNTIME & ACCELERATION SPECS",
+                    color = colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
@@ -520,9 +523,10 @@ fun DashboardScreen(
 
 @Composable
 private fun SpecItem(title: String, value: String) {
+    val colorScheme = MaterialTheme.colorScheme
     Column {
-        Text(title, color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Text(title, color = colorScheme.onSurface.copy(alpha = 0.45f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(value, color = TextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+        Text(value, color = colorScheme.onSurface, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
     }
 }
